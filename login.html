@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giriş yap · ODES</title>
+  <link rel="stylesheet" href="assets/css/styles.css">
+</head>
+<body data-page="login">
+  <div class="auth">
+    <section class="auth-side" aria-hidden="true">
+      <a class="brand" href="login.html"><span class="logo" id="logoIc"></span><span><b>ODES</b><small>Demo prototipi</small></span></a>
+      <div>
+        <h2>Okul iletişimi tek yerde.</h2>
+        <p>Öğrenci, öğretmen ve yönetici panelleri; bildirim oluşturma, durum takibi ve istatistikler bu demoda birlikte çalışır.</p>
+        <ul>
+          <li>Rol bazlı paneller</li>
+          <li>Zamanlanabilir bildirimler ve okunma takibi</li>
+          <li>Mobil ve tablet uyumlu arayüz</li>
+        </ul>
+      </div>
+      <small>Veriler yalnızca bu tarayıcıda tutulur.</small>
+    </section>
+    <main class="auth-main">
+      <div class="auth-card">
+        <h1>Giriş yap</h1>
+        <p class="muted" style="margin-bottom:18px">Hesabınızla devam edin.</p>
+        <div class="alert warn" role="note"><span id="warnIc"></span><span><b>Demo modu:</b> Şifre doğrulanmaz ve hiçbir yere gönderilmez ya da saklanmaz. Giriş, yalnızca e-posta ile eşleşen demo hesabını açar.</span></div>
+        <div id="formAlert" role="alert"></div>
+        <form id="loginForm" novalidate>
+          <div class="field">
+            <label for="email">E-posta</label>
+            <input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="ornek@odes.demo" required>
+            <span class="err" id="emailErr"></span>
+          </div>
+          <div class="field">
+            <label for="password">Şifre</label>
+            <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+            <span class="err" id="passErr"></span>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Giriş yap</button>
+        </form>
+        <div class="demo-accts">
+          <b>Hızlı demo girişi</b>
+          <div class="btns">
+            <button class="btn btn-sm" type="button" data-demo="ogrenci@odes.demo">Öğrenci</button>
+            <button class="btn btn-sm" type="button" data-demo="ogretmen@odes.demo">Öğretmen</button>
+            <button class="btn btn-sm" type="button" data-demo="yonetici@odes.demo">Yönetici</button>
+          </div>
+        </div>
+        <p class="auth-foot">Hesabınız yok mu? <a href="register.html">Kayıt ol</a></p>
+      </div>
+    </main>
+  </div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/app.js"></script>
+  <script src="assets/js/pages/login.js"></script>
+</body>
+</html>
