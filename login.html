@@ -7,48 +7,53 @@
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body data-page="login">
-  <div class="auth">
-    <section class="auth-side" aria-hidden="true">
-      <a class="brand" href="login.html"><span class="logo" id="logoIc"></span><span><b>ODES</b><small>Demo prototipi</small></span></a>
-      <div>
-        <h2>Okul iletişimi tek yerde.</h2>
-        <p>Öğrenci, öğretmen ve yönetici panelleri; bildirim oluşturma, durum takibi ve istatistikler bu demoda birlikte çalışır.</p>
-        <ul>
-          <li>Rol bazlı paneller</li>
-          <li>Zamanlanabilir bildirimler ve okunma takibi</li>
-          <li>Mobil ve tablet uyumlu arayüz</li>
-        </ul>
+  <div class="auth auth-redesign">
+    <section class="auth-side" aria-label="ODES tanıtımı">
+      <a class="brand" href="login.html"><span class="logo" id="logoIc"></span><span><b>ODES</b><small>Okul deneyim ve iletişim sistemi</small></span></a>
+      <div class="auth-hero-copy">
+        <span class="eyebrow"><span class="eyebrow-dot"></span> OKULUNUZLA HER AN BAĞLANTIDA</span>
+        <h2>Okul yaşamı,<br><em>tek bir yerde.</em></h2>
+        <p>Öğrenciler, öğretmenler ve yöneticiler için daha düzenli, anlaşılır ve güçlü bir iletişim deneyimi.</p>
+        <div class="feature-list">
+          <div class="feature-item"><span class="feature-icon">✓</span><span><b>Tek merkezden iletişim</b><small>Duyurular ve bildirimler bir arada</small></span></div>
+          <div class="feature-item"><span class="feature-icon">↗</span><span><b>Kolay takip</b><small>Okunma durumları ve güncel bilgiler</small></span></div>
+          <div class="feature-item"><span class="feature-icon">⌘</span><span><b>Her role uygun</b><small>Öğrenci, öğretmen ve yönetici panelleri</small></span></div>
+        </div>
       </div>
-      <small>Veriler yalnızca bu tarayıcıda tutulur.</small>
+      <div class="auth-side-bottom"><span class="mini-orbit"></span><span>ODES · Eğitimde bağlantı, iletişimde kolaylık</span><small>Demo prototipi</small></div>
     </section>
     <main class="auth-main">
-      <div class="auth-card">
-        <h1>Giriş yap</h1>
-        <p class="muted" style="margin-bottom:18px">Hesabınızla devam edin.</p>
+      <div class="auth-card auth-card-redesign">
+        <div class="mobile-brand"><span class="mobile-brand-mark">O</span><span><b>ODES</b><small>Okul iletişim platformu</small></span></div>
+        <div class="welcome-mark">✦</div>
+        <span class="form-kicker">HOŞ GELDİNİZ</span>
+        <h1>Hesabınıza giriş yapın</h1>
+        <p class="muted auth-subtitle">Devam etmek için hesap bilgilerinizi girin.</p>
         <div class="alert warn" role="note"><span id="warnIc"></span><span><b>Demo modu:</b> Şifre doğrulanmaz ve hiçbir yere gönderilmez ya da saklanmaz. Giriş, yalnızca e-posta ile eşleşen demo hesabını açar.</span></div>
         <div id="formAlert" role="alert"></div>
         <form id="loginForm" novalidate>
           <div class="field">
-            <label for="email">E-posta</label>
-            <input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="ornek@odes.demo" required>
+            <label for="email">E-posta adresi</label>
+            <div class="input-wrap"><span class="input-symbol">✉</span><input class="input" id="email" name="email" type="email" autocomplete="username" placeholder="ornek@odes.demo" required></div>
             <span class="err" id="emailErr"></span>
           </div>
           <div class="field">
             <label for="password">Şifre</label>
-            <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+            <div class="input-wrap"><span class="input-symbol">⌑</span><input class="input" id="password" name="password" type="password" autocomplete="current-password" placeholder="Şifrenizi girin" required><button class="password-toggle" id="togglePassword" type="button" aria-label="Şifreyi göster">Göster</button></div>
             <span class="err" id="passErr"></span>
           </div>
-          <button class="btn btn-primary btn-block" type="submit">Giriş yap</button>
+          <button class="btn btn-primary btn-block auth-submit" type="submit"><span>Giriş yap</span><span aria-hidden="true">→</span></button>
         </form>
         <div class="demo-accts">
-          <b>Hızlı demo girişi</b>
+          <div class="demo-heading"><b>Hızlı demo girişi</b><span>Rol seçerek deneyin</span></div>
           <div class="btns">
-            <button class="btn btn-sm" type="button" data-demo="ogrenci@odes.demo">Öğrenci</button>
-            <button class="btn btn-sm" type="button" data-demo="ogretmen@odes.demo">Öğretmen</button>
-            <button class="btn btn-sm" type="button" data-demo="yonetici@odes.demo">Yönetici</button>
+            <button class="btn btn-sm" type="button" data-demo="ogrenci@odes.demo"><span>◎</span> Öğrenci</button>
+            <button class="btn btn-sm" type="button" data-demo="ogretmen@odes.demo"><span>▤</span> Öğretmen</button>
+            <button class="btn btn-sm" type="button" data-demo="yonetici@odes.demo"><span>♙</span> Yönetici</button>
           </div>
         </div>
-        <p class="auth-foot">Hesabınız yok mu? <a href="register.html">Kayıt ol</a></p>
+        <p class="auth-foot">Henüz hesabınız yok mu? <a href="register.html">Hemen kayıt olun <span>→</span></a></p>
+        <div class="auth-legal">Güvenli ve düzenli okul iletişimi için ODES.</div>
       </div>
     </main>
   </div>

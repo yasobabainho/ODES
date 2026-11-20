@@ -11,6 +11,16 @@
 
     const form = $('#loginForm');
     const alertBox = $('#formAlert');
+    const togglePassword = $('#togglePassword');
+    if (togglePassword) {
+      togglePassword.addEventListener('click', () => {
+        const pass = $('#password');
+        const reveal = pass.type === 'password';
+        pass.type = reveal ? 'text' : 'password';
+        togglePassword.textContent = reveal ? 'Gizle' : 'Göster';
+        togglePassword.setAttribute('aria-label', reveal ? 'Şifreyi gizle' : 'Şifreyi göster');
+      });
+    }
 
     // Başka sayfadan gelen mesaj (ör. hesap pasife alındı)
     try {

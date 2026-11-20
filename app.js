@@ -343,12 +343,7 @@
   };
 
   function downloadCSV(filename, rows) {
-    // Prevent spreadsheet formula injection in user-controlled CSV cells.
-    const safeCell = value => {
-      const text = String(value == null ? '' : value);
-      return /^[\s]*[=+@\-]/.test(text) ? "'" + text : text;
-    };
-    const csv = rows.map(r => r.map(c => '"' + safeCell(c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const csv = rows.map(r => r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
