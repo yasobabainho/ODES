@@ -1,3 +1,4 @@
+
 /* ODES demo prototipi - demo veri deposu (localStorage).
    UYARI: Bu bir prototiptir. Gerçek kimlik doğrulama, şifre saklama veya sunucu tarafı
    yetkilendirme YOKTUR. Tüm veri bu tarayıcıda tutulur. */
@@ -13,24 +14,48 @@
   const TYPES = { duyuru: 'Duyuru', odev: 'Ödev', sinav: 'Sınav', acil: 'Acil' };
   const STATUSES = { draft: 'Taslak', scheduled: 'Zamanlandı', sent: 'Gönderildi', cancelled: 'İptal edildi' };
   const ROLES = { student: 'Öğrenci', teacher: 'Öğretmen', admin: 'Yönetici' };
+  const REPORT_STATUSES = {
+    new: 'Yeni',
+    reviewing: 'İnceleniyor',
+    resolved: 'Çözüldü',
+    closed: 'Kapatıldı'
+  };
+  const REPORT_CATEGORIES = {
+    bullying: 'Akran zorbalığı',
+    safety: 'Güvenlik',
+    facility: 'Fiziksel ortam',
+    communication: 'İletişim sorunu',
+    other: 'Diğer'
+  };
+
   const CLASSES = ['10-A', '11-A', '11-B'];
   const DAYS = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
 
   const pad = n => String(n).padStart(2, '0');
-  const dateKey = (d) => { d = d ? new Date(d) : new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
-  const atDay = (offset, h, m) => { const d = new Date(); d.setDate(d.getDate() + offset); d.setHours(h == null ? 9 : h, m || 0, 0, 0); return d.toISOString(); };
+  const dateKey = d => {
+    d = d ? new Date(d) : new Date();
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  };
+  const atDay = (offset, h, m) => {
+    const d = new Date();
+    d.setDate(d.getDate() + offset);
+    d.setHours(h == null ? 9 : h, m || 0, 0, 0);
+    return d.toISOString();
+  };
   const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-  /* ---------- Alıcı çözümleme (saf fonksiyon) ---------- */
+  /* ---------- Alıcı çözümleme ---------- */
   function resolve(users, aud, senderId) {
     const sender = users.find(u => u.id === senderId);
     const act = users.filter(u => u.status === 'active' && u.id !== senderId);
+
     switch (aud && aud.kind) {
       case 'all': return act.map(u => u.id);
       case 'students': return act.filter(u => u.role === 'student').map(u => u.id);
       case 'teachers': return act.filter(u => u.role === 'teacher').map(u => u.id);
       case 'class': return act.filter(u => u.role === 'student' && u.class === aud.value).map(u => u.id);
-      case 'myclasses': return act.filter(u => u.role === 'student' && sender && (sender.classes || []).includes(u.class)).map(u => u.id);
+      case 'myclasses':
+        return act.filter(u => u.role === 'student' && sender && (sender.classes || []).includes(u.class)).map(u => u.id);
       case 'user': return act.filter(u => u.id === aud.value).map(u => u.id);
       case 'users': return act.filter(u => (aud.value || []).includes(u.id)).map(u => u.id);
       default: return [];
@@ -64,7 +89,6 @@
       { id: 'c3', name: 'Türk Dili ve Edebiyatı', teacherId: 't4', classes: ['10-A', '11-A', '11-B'] }
     ];
 
-    // Notlar (deterministik, 55-95 aralığı)
     const grades = {};
     users.filter(u => u.role === 'student').forEach((u, a) => {
       grades[u.id] = {};
@@ -85,7 +109,6 @@
       { id: 'as7', title: 'İntegral testi', courseId: 'c1', class: '11-A', due: atDay(-3, 23, 59), createdBy: 't1', done: { s1: true, s2: true, s3: true } }
     ];
 
-    // Yoklama (son 3 gün)
     const attendance = {};
     const absent = { '-1': ['s3', 's7'], '-2': ['s1', 's7'], '-3': ['s5'] };
     [-1, -2, -3].forEach(off => {
@@ -109,7 +132,10 @@
       { at: atDay(-9, 11, 0), text: 'Orhan Bilgin hesabı pasif duruma alındı.' }
     ];
 
-    return { v: VERSION, users, courses, grades, assignments, attendance, notifications, activity };
+    return {
+      v: VERSION, users, courses, grades, assignments, attendance,
+      notifications, activity, reports: []
+    };
   }
 
   function seedNotifications(users) {
@@ -136,9 +162,11 @@
       const status = def.status || 'sent';
       const created = atDay(def.d - (status === 'scheduled' ? 1 : 0), def.h - 1 > 0 ? def.h - 1 : def.h);
       const n = {
-        id: def.id, title: def.title, body: def.body, type: def.type, audience: def.aud, senderId: def.by,
-        createdAt: created, scheduledAt: null, sentAt: null, status, recipients: [], reads: {}
+        id: def.id, title: def.title, body: def.body, type: def.type, audience: def.aud,
+        senderId: def.by, createdAt: created, scheduledAt: null, sentAt: null,
+        status, recipients: [], reads: {}
       };
+
       if (status === 'scheduled') n.scheduledAt = atDay(def.d, def.h);
       if (status === 'sent') {
         n.sentAt = atDay(def.d, def.h);
@@ -163,19 +191,50 @@
 
   function load() {
     if (db) return db;
+
     try {
       const raw = localStorage.getItem(DB_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed && parsed.v === VERSION) { db = parsed; return db; }
+        if (parsed && parsed.v === VERSION) {
+          db = parsed;
+
+          // Eski kayıtları silmeden yeni alanları ekle.
+          let changed = false;
+          if (!Array.isArray(db.reports)) {
+            db.reports = [];
+            changed = true;
+          }
+          if (!Array.isArray(db.activity)) {
+            db.activity = [];
+            changed = true;
+          }
+          if (changed) save();
+
+          return db;
+        }
       }
-    } catch (e) { /* localStorage kapalı olabilir; bellekte devam edilir */ }
+    } catch (e) {
+      /* localStorage kapalı olabilir; bellekte devam edilir */
+    }
+
     db = seed();
     save();
     return db;
   }
-  function save() { try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch (e) { /* yoksay */ } }
-  function reset() { db = seed(); save(); }
+
+  function save() {
+    try {
+      localStorage.setItem(DB_KEY, JSON.stringify(db));
+    } catch (e) {
+      /* yoksay */
+    }
+  }
+
+  function reset() {
+    db = seed();
+    save();
+  }
 
   const store = {
     load, save, reset,
@@ -183,13 +242,20 @@
     uid, dateKey, resolve,
 
     user: id => load().users.find(u => u.id === id) || null,
+
     currentUser() {
       let id = null;
       try { id = sessionStorage.getItem(SESSION_KEY); } catch (e) { /* yoksay */ }
       return id ? this.user(id) : null;
     },
-    setSession(id) { try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) { /* yoksay */ } },
-    logout() { try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* yoksay */ } },
+
+    setSession(id) {
+      try { sessionStorage.setItem(SESSION_KEY, id); } catch (e) { /* yoksay */ }
+    },
+
+    logout() {
+      try { sessionStorage.removeItem(SESSION_KEY); } catch (e) { /* yoksay */ }
+    },
 
     /* Demo girişi: yalnızca e-posta eşleşmesi. Şifre doğrulanmaz ve saklanmaz. */
     login(email) {
@@ -200,37 +266,88 @@
       this.setSession(u.id);
       return { ok: true, user: u };
     },
+
     register(info) {
       const d = load();
       const email = String(info.email).trim().toLowerCase();
-      if (d.users.some(u => u.email.toLowerCase() === email)) return { ok: false, error: 'Bu e-posta adresi zaten kayıtlı.' };
-      const u = { id: uid('u'), name: info.name.trim(), email, role: info.role, status: info.role === 'teacher' ? 'pending' : 'active' };
+
+      if (d.users.some(u => u.email.toLowerCase() === email)) {
+        return { ok: false, error: 'Bu e-posta adresi zaten kayıtlı.' };
+      }
+
+      const u = {
+        id: uid('u'),
+        name: info.name.trim(),
+        email,
+        role: info.role,
+        status: info.role === 'teacher' ? 'pending' : 'active'
+      };
+
       if (info.role === 'student') u.class = info.class;
-      if (info.role === 'teacher') { u.branch = info.branch.trim(); u.classes = []; }
+      if (info.role === 'teacher') {
+        u.branch = info.branch.trim();
+        u.classes = [];
+      }
+
       d.users.push(u);
       this.log(u.name + ' kayıt oldu' + (u.status === 'pending' ? ' (onay bekliyor).' : '.'));
       save();
+
       return { ok: true, user: u };
     },
 
-    log(text) { load().activity.unshift({ at: new Date().toISOString(), text }); load().activity.length = Math.min(load().activity.length, 60); save(); },
+    log(text) {
+      load().activity.unshift({ at: new Date().toISOString(), text });
+      load().activity.length = Math.min(load().activity.length, 60);
+      save();
+    },
 
     /* Kullanıcı yönetimi */
-    setUserStatus(id, status) { const u = this.user(id); if (!u) return; u.status = status; this.log(u.name + (status === 'active' ? ' hesabı etkinleştirildi.' : ' hesabı pasif duruma alındı.')); save(); },
-    deleteUser(id) { const d = load(); const u = this.user(id); if (!u) return; d.users = d.users.filter(x => x.id !== id); this.log(u.name + ' hesabı silindi.'); save(); },
-    addUser(info) { return this.register(info); },
+    setUserStatus(id, status) {
+      const u = this.user(id);
+      if (!u) return;
+      u.status = status;
+      this.log(u.name + (status === 'active' ? ' hesabı etkinleştirildi.' : ' hesabı pasif duruma alındı.'));
+      save();
+    },
+
+    deleteUser(id) {
+      const d = load();
+      const u = this.user(id);
+      if (!u) return;
+      d.users = d.users.filter(x => x.id !== id);
+      this.log(u.name + ' hesabı silindi.');
+      save();
+    },
+
+    addUser(info) {
+      return this.register(info);
+    },
+
     approveTeacher(id, classes) {
-      const d = load(); const u = this.user(id); if (!u) return;
-      u.status = 'active'; u.classes = classes;
+      const d = load();
+      const u = this.user(id);
+      if (!u) return;
+
+      u.status = 'active';
+      u.classes = classes;
+
       let c = d.courses.find(x => x.teacherId === id);
-      if (!c) { c = { id: uid('c'), name: u.branch || 'Ders', teacherId: id, classes: [] }; d.courses.push(c); }
+      if (!c) {
+        c = { id: uid('c'), name: u.branch || 'Ders', teacherId: id, classes: [] };
+        d.courses.push(c);
+      }
+
       c.classes = classes.slice();
       this.log(u.name + ' hesabı onaylandı.');
       save();
     },
 
-    /* Bildirimler */
-    recipients(aud, senderId) { return resolve(load().users, aud, senderId); },
+    /* ---------- Bildirimler ---------- */
+    recipients(aud, senderId) {
+      return resolve(load().users, aud, senderId);
+    },
+
     audienceLabel(aud) {
       switch (aud.kind) {
         case 'all': return 'Herkes';
@@ -238,31 +355,55 @@
         case 'teachers': return 'Tüm öğretmenler';
         case 'class': return 'Sınıf ' + aud.value;
         case 'myclasses': return 'Sınıflarımdaki öğrenciler';
-        case 'user': { const u = this.user(aud.value); return u ? u.name : 'Silinmiş kullanıcı'; }
+        case 'user': {
+          const u = this.user(aud.value);
+          return u ? u.name : 'Silinmiş kullanıcı';
+        }
         case 'users': return (aud.value || []).length + ' kişi (seçili)';
         default: return '—';
       }
     },
-    recipientCount(n) { return n.status === 'sent' ? n.recipients.length : this.recipients(n.audience, n.senderId).length; },
-    notification(id) { return load().notifications.find(n => n.id === id) || null; },
+
+    recipientCount(n) {
+      return n.status === 'sent'
+        ? n.recipients.length
+        : this.recipients(n.audience, n.senderId).length;
+    },
+
+    notification(id) {
+      return load().notifications.find(n => n.id === id) || null;
+    },
+
     createNotification(data) {
-      const n = Object.assign({ id: uid('n'), createdAt: new Date().toISOString(), scheduledAt: null, sentAt: null, status: 'draft', recipients: [], reads: {} }, data);
+      const n = Object.assign({
+        id: uid('n'),
+        createdAt: new Date().toISOString(),
+        scheduledAt: null,
+        sentAt: null,
+        status: 'draft',
+        recipients: [],
+        reads: {}
+      }, data);
+
       load().notifications.push(n);
       save();
       return n;
     },
+
     sendNow(n) {
       n.recipients = this.recipients(n.audience, n.senderId);
       n.reads = {};
       n.sentAt = new Date().toISOString();
       n.status = 'sent';
+
       const s = this.user(n.senderId);
       this.log((s ? s.name : 'Bilinmeyen') + ' "' + n.title + '" bildirimini gönderdi.');
       save();
     },
-    /* Zamanlanmış gönderimleri simüle eder: zamanı gelenler sayfa yüklenirken gönderilir. */
+
     processScheduled() {
       let changed = false;
+
       load().notifications.forEach(n => {
         if (n.status === 'scheduled' && n.scheduledAt && new Date(n.scheduledAt).getTime() <= Date.now()) {
           const when = n.scheduledAt;
@@ -273,58 +414,352 @@
           changed = true;
         }
       });
+
       if (changed) save();
     },
-    deleteNotification(id) { const d = load(); d.notifications = d.notifications.filter(n => n.id !== id); save(); },
+
+    deleteNotification(id) {
+      const d = load();
+      d.notifications = d.notifications.filter(n => n.id !== id);
+      save();
+    },
+
     inboxFor(userId) {
       return load().notifications
         .filter(n => n.status === 'sent' && n.recipients.includes(userId))
         .sort((a, b) => new Date(b.sentAt) - new Date(a.sentAt))
         .map(n => ({ n, read: !!n.reads[userId] }));
     },
-    markRead(nid, userId) { const n = this.notification(nid); if (n && n.recipients.includes(userId) && !n.reads[userId]) { n.reads[userId] = new Date().toISOString(); save(); } },
-    markAllRead(userId) { this.inboxFor(userId).forEach(x => { if (!x.read) x.n.reads[userId] = new Date().toISOString(); }); save(); },
 
-    /* Akademik */
-    students(cls) { return load().users.filter(u => u.role === 'student' && u.status === 'active' && (!cls || u.class === cls)); },
-    courseName(cid) { const c = load().courses.find(x => x.id === cid); return c ? c.name : '—'; },
-    coursesOfTeacher(tid) { return load().courses.filter(c => c.teacherId === tid); },
-    assignmentsFor(user) {
-      return load().assignments.filter(a => a.class === user.class)
-        .map(a => Object.assign({}, a, { isDone: !!(a.done && a.done[user.id]), courseName: this.courseName(a.courseId) }))
-        .sort((a, b) => new Date(a.due) - new Date(b.due));
+    markRead(nid, userId) {
+      const n = this.notification(nid);
+      if (n && n.recipients.includes(userId) && !n.reads[userId]) {
+        n.reads[userId] = new Date().toISOString();
+        save();
+      }
     },
-    toggleAssignment(aid, userId) {
-      const a = load().assignments.find(x => x.id === aid); if (!a) return;
-      a.done = a.done || {};
-      if (a.done[userId]) delete a.done[userId]; else a.done[userId] = true;
+
+    markAllRead(userId) {
+      this.inboxFor(userId).forEach(x => {
+        if (!x.read) x.n.reads[userId] = new Date().toISOString();
+      });
       save();
     },
-    scheduleFor(cls) {
-      const base = [[1, '09:00', 'c1'], [1, '10:00', 'c2'], [1, '11:00', 'c3'], [2, '09:00', 'c3'], [2, '10:00', 'c1'], [2, '13:00', 'c2'],
-        [3, '09:00', 'c2'], [3, '10:00', 'c3'], [3, '11:00', 'c1'], [4, '09:00', 'c1'], [4, '10:00', 'c3'], [4, '12:00', 'c2'],
-        [5, '09:00', 'c2'], [5, '10:00', 'c1'], [5, '11:00', 'c3']];
-      const room = { '10-A': 'B-101', '11-A': 'A-204', '11-B': 'A-205' }[cls] || 'A-100';
-      return base.map(b => ({ day: b[0], time: b[1], course: load().courses.find(c => c.id === b[2]) })).filter(x => x.course && x.course.classes.includes(cls))
-        .map(x => ({ day: x.day, time: x.time, courseName: x.course.name, teacher: (store.user(x.course.teacherId) || {}).name || '—', room }));
+
+    /* ---------- Öğrenci bildirim / sorun takip sistemi ---------- */
+
+    reportById(id) {
+      return load().reports.find(r => r.id === id) || null;
     },
-    weighted(g) { return g ? Math.round((g.vize * 0.4 + g.quiz * 0.2 + g.proje * 0.4) * 10) / 10 : null; },
-    gradesFor(sid) {
-      const u = this.user(sid); const d = load();
-      return d.courses.filter(c => u && c.classes.includes(u.class)).map(c => {
-        const g = (d.grades[sid] || {})[c.id] || null;
-        return { course: c, g, avg: this.weighted(g) };
+
+    reportsForStudent(studentId) {
+      return load().reports
+        .filter(r => r.studentId === studentId)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+
+    reportsForTeacher(teacherId) {
+      const teacher = this.user(teacherId);
+      if (!teacher || teacher.role !== 'teacher') return [];
+
+      const classes = teacher.classes || [];
+
+      return load().reports
+        .filter(r => classes.includes(r.class))
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+
+    allReports() {
+      return load().reports
+        .slice()
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    },
+
+    createReport(info) {
+      const student = this.user(info.studentId);
+
+      if (!student || student.role !== 'student' || student.status !== 'active') {
+        return { ok: false, error: 'Aktif bir öğrenci hesabı gerekli.' };
+      }
+
+      const title = String(info.title || '').trim();
+      const description = String(info.description || '').trim();
+      const category = String(info.category || 'other');
+
+      if (!title || !description) {
+        return { ok: false, error: 'Başlık ve açıklama alanlarını doldurmalısın.' };
+      }
+
+      if (!REPORT_CATEGORIES[category]) {
+        return { ok: false, error: 'Geçerli bir bildirim kategorisi seçmelisin.' };
+      }
+
+      const now = new Date().toISOString();
+
+      const report = {
+        id: uid('r'),
+        studentId: student.id,
+        studentName: student.name,
+        class: student.class || '—',
+        title: title.slice(0, 100),
+        description: description.slice(0, 2000),
+        category,
+        status: 'new',
+        assignedTeacherId: null,
+        createdAt: now,
+        updatedAt: now,
+        history: [{
+          status: 'new',
+          actorId: student.id,
+          actorName: student.name,
+          note: 'Bildirim oluşturuldu.',
+          at: now
+        }]
+      };
+
+      const d = load();
+      d.reports.unshift(report);
+      save();
+
+      // Öğrencinin sınıfıyla ilgilenen öğretmenler ve yöneticiler bilgilendirilir.
+      const recipients = d.users
+        .filter(u => u.status === 'active' && (
+          u.role === 'admin' ||
+          (u.role === 'teacher' && (u.classes || []).includes(student.class))
+        ))
+        .map(u => u.id);
+
+      const notification = this.createNotification({
+        title: 'Yeni öğrenci bildirimi',
+        body: student.class + ' sınıfından yeni bir bildirim oluşturuldu.',
+        type: 'duyuru',
+        audience: { kind: 'users', value: recipients },
+        senderId: student.id
       });
+
+      this.sendNow(notification);
+      this.log(student.name + ' yeni bir bildirim oluşturdu.');
+
+      return { ok: true, report };
     },
+
+    updateReportStatus(reportId, status, actorId, note) {
+      const report = this.reportById(reportId);
+      const actor = this.user(actorId);
+
+      if (!report) {
+        return { ok: false, error: 'Bildirim bulunamadı.' };
+      }
+
+      if (!actor || (actor.role !== 'teacher' && actor.role !== 'admin')) {
+        return { ok: false, error: 'Bu işlem için yetkili hesap gerekli.' };
+      }
+
+      if (!REPORT_STATUSES[status]) {
+        return { ok: false, error: 'Geçersiz bildirim durumu.' };
+      }
+
+      if (actor.role === 'teacher' && !(actor.classes || []).includes(report.class)) {
+        return { ok: false, error: 'Bu sınıfa ait bildirim üzerinde işlem yapamazsın.' };
+      }
+
+      const now = new Date().toISOString();
+      const cleanNote = String(note || '').trim().slice(0, 500);
+
+      report.status = status;
+      report.updatedAt = now;
+
+      if (actor.role === 'teacher') {
+        report.assignedTeacherId = actor.id;
+      }
+
+      report.history = report.history || [];
+      report.history.push({
+        status,
+        actorId: actor.id,
+        actorName: actor.name,
+        note: cleanNote || REPORT_STATUSES[status] + ' olarak güncellendi.',
+        at: now
+      });
+
+      save();
+
+      const notification = this.createNotification({
+        title: 'Bildirimin güncellendi',
+        body: '"' + report.title + '" başlıklı bildiriminin durumu "' +
+          REPORT_STATUSES[status] + '" olarak değiştirildi.',
+        type: 'duyuru',
+        audience: { kind: 'user', value: report.studentId },
+        senderId: actor.id
+      });
+
+      this.sendNow(notification);
+      this.log(actor.name + ', "' + report.title + '" bildirimini "' + REPORT_STATUSES[status] + '" yaptı.');
+
+      return { ok: true, report };
+    },
+
+    assignReport(reportId, teacherId, actorId) {
+      const report = this.reportById(reportId);
+      const teacher = this.user(teacherId);
+      const actor = this.user(actorId);
+
+      if (!report || !teacher || teacher.role !== 'teacher' || teacher.status !== 'active') {
+        return { ok: false, error: 'Bildirim veya öğretmen bulunamadı.' };
+      }
+
+      if (actor && actor.role === 'teacher' && !(actor.classes || []).includes(report.class)) {
+        return { ok: false, error: 'Bu bildirim üzerinde işlem yapamazsın.' };
+      }
+
+      if (!(teacher.classes || []).includes(report.class)) {
+        return { ok: false, error: 'Seçilen öğretmen bu sınıftan sorumlu değil.' };
+      }
+
+      report.assignedTeacherId = teacher.id;
+      report.updatedAt = new Date().toISOString();
+
+      report.history = report.history || [];
+      report.history.push({
+        status: report.status,
+        actorId: actor ? actor.id : null,
+        actorName: actor ? actor.name : 'Sistem',
+        note: teacher.name + ' bildirimden sorumlu öğretmen olarak atandı.',
+        at: report.updatedAt
+      });
+
+      save();
+      this.log(teacher.name + ' bir öğrenci bildirimi için sorumlu öğretmen olarak atandı.');
+
+      return { ok: true, report };
+    },
+
+    reportStats() {
+      const reports = load().reports;
+      return {
+        total: reports.length,
+        new: reports.filter(r => r.status === 'new').length,
+        reviewing: reports.filter(r => r.status === 'reviewing').length,
+        resolved: reports.filter(r => r.status === 'resolved').length,
+        closed: reports.filter(r => r.status === 'closed').length
+      };
+    },
+
+    /* ---------- Akademik ---------- */
+    students(cls) {
+      return load().users.filter(u =>
+        u.role === 'student' && u.status === 'active' && (!cls || u.class === cls)
+      );
+    },
+
+    courseName(cid) {
+      const c = load().courses.find(x => x.id === cid);
+      return c ? c.name : '—';
+    },
+
+    coursesOfTeacher(tid) {
+      return load().courses.filter(c => c.teacherId === tid);
+    },
+
+    assignmentsFor(user) {
+      return load().assignments
+        .filter(a => a.class === user.class)
+        .map(a => Object.assign({}, a, {
+          isDone: !!(a.done && a.done[user.id]),
+          courseName: this.courseName(a.courseId)
+        }))
+        .sort((a, b) => new Date(a.due) - new Date(b.due));
+    },
+
+    toggleAssignment(aid, userId) {
+      const a = load().assignments.find(x => x.id === aid);
+      if (!a) return;
+
+      a.done = a.done || {};
+      if (a.done[userId]) delete a.done[userId];
+      else a.done[userId] = true;
+
+      save();
+    },
+
+    scheduleFor(cls) {
+      const base = [
+        [1, '09:00', 'c1'], [1, '10:00', 'c2'], [1, '11:00', 'c3'],
+        [2, '09:00', 'c3'], [2, '10:00', 'c1'], [2, '13:00', 'c2'],
+        [3, '09:00', 'c2'], [3, '10:00', 'c3'], [3, '11:00', 'c1'],
+        [4, '09:00', 'c1'], [4, '10:00', 'c3'], [4, '12:00', 'c2'],
+        [5, '09:00', 'c2'], [5, '10:00', 'c1'], [5, '11:00', 'c3']
+      ];
+
+      const room = { '10-A': 'B-101', '11-A': 'A-204', '11-B': 'A-205' }[cls] || 'A-100';
+
+      return base
+        .map(b => ({
+          day: b[0],
+          time: b[1],
+          course: load().courses.find(c => c.id === b[2])
+        }))
+        .filter(x => x.course && x.course.classes.includes(cls))
+        .map(x => ({
+          day: x.day,
+          time: x.time,
+          courseName: x.course.name,
+          teacher: (store.user(x.course.teacherId) || {}).name || '—',
+          room
+        }));
+    },
+
+    weighted(g) {
+      return g ? Math.round((g.vize * 0.4 + g.quiz * 0.2 + g.proje * 0.4) * 10) / 10 : null;
+    },
+
+    gradesFor(sid) {
+      const u = this.user(sid);
+      const d = load();
+
+      return d.courses
+        .filter(c => u && c.classes.includes(u.class))
+        .map(c => {
+          const g = (d.grades[sid] || {})[c.id] || null;
+          return { course: c, g, avg: this.weighted(g) };
+        });
+    },
+
     overallAvg(sid) {
       const a = this.gradesFor(sid).map(x => x.avg).filter(x => x != null);
-      return a.length ? Math.round(a.reduce((s, x) => s + x, 0) / a.length * 10) / 10 : null;
+      return a.length
+        ? Math.round(a.reduce((s, x) => s + x, 0) / a.length * 10) / 10
+        : null;
     },
-    absences(sid) { return Object.values(load().attendance).filter(rec => rec[sid] === 'absent').length; },
-    getAttendance(date, cls) { return Object.assign({}, load().attendance[date + '|' + cls] || {}); },
-    setAttendance(date, cls, rec) { load().attendance[date + '|' + cls] = rec; save(); },
-    hasAttendance(date, cls) { return !!load().attendance[date + '|' + cls]; }
+
+    absences(sid) {
+      return Object.values(load().attendance).filter(rec => rec[sid] === 'absent').length;
+    },
+
+    getAttendance(date, cls) {
+      return Object.assign({}, load().attendance[date + '|' + cls] || {});
+    },
+
+    setAttendance(date, cls, rec) {
+      load().attendance[date + '|' + cls] = rec;
+      save();
+    },
+
+    hasAttendance(date, cls) {
+      return !!load().attendance[date + '|' + cls];
+    }
   };
 
-  global.ODES = { store, TYPES, STATUSES, ROLES, CLASSES, DAYS, DAY, HOUR };
+  global.ODES = {
+    store,
+    TYPES,
+    STATUSES,
+    REPORT_STATUSES,
+    REPORT_CATEGORIES,
+    ROLES,
+    CLASSES,
+    DAYS,
+    DAY,
+    HOUR
+  };
 })(window);
