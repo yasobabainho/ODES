@@ -1,84 +1,264 @@
+
 <!doctype html>
 <html lang="tr">
 <head>
-  <meta charset="utf-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Kayıt ol · ODES</title>
-  <link rel="stylesheet" href="assets/css/styles.css">
+  <meta name="theme-color" content="#f4f8ff">
+  <title>Kayıt Ol | ODES</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body data-page="register">
-  <div class="auth">
-    <section class="auth-side" aria-hidden="true">
-      <a class="brand" href="login.html"><span class="logo" id="logoIc"></span><span><b>ODES</b><small>Demo prototipi</small></span></a>
-      <div>
-        <h2>Hesabınızı oluşturun.</h2>
-        <p>Öğrenci kayıtları anında etkinleşir. Öğretmen kayıtları yönetici onayına düşer; onay işlemini yönetici panelinden deneyebilirsiniz.</p>
+
+  <div class="auth auth-redesign">
+
+    <section class="auth-side" aria-label="ODES tanıtımı">
+
+      <a class="brand" href="login.html">
+        <span class="logo" id="logoIc"></span>
+        <span>
+          <b>ODES</b>
+          <small>Okul deneyim ve iletişim sistemi</small>
+        </span>
+      </a>
+
+      <div class="auth-hero-copy">
+
+        <span class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          ODES AİLESİNE KATILIN
+        </span>
+
+        <h2>
+          Daha güvenli bir okul,<br>
+          <em>seninle başlar.</em>
+        </h2>
+
+        <p>
+          Hesabını oluştur, okul ortamındaki sorunların çözümüne
+          katkıda bulun ve ODES platformunu keşfet.
+        </p>
+
+        <div class="feature-list">
+
+          <div class="feature-item">
+            <span class="feature-icon">✓</span>
+            <span>
+              <b>Kolay hesap oluşturma</b>
+              <small>Birkaç adımda ODES'e katıl</small>
+            </span>
+          </div>
+
+          <div class="feature-item">
+            <span class="feature-icon">↗</span>
+            <span>
+              <b>Güvenli iletişim</b>
+              <small>Bildirim ve takip süreçlerini kullan</small>
+            </span>
+          </div>
+
+          <div class="feature-item">
+            <span class="feature-icon">⌘</span>
+            <span>
+              <b>Birlikte daha güçlüyüz</b>
+              <small>Öğrenci ve öğretmen iş birliği</small>
+            </span>
+          </div>
+
+        </div>
       </div>
-      <small>Veriler yalnızca bu tarayıcıda tutulur.</small>
+
+      <div class="auth-side-bottom">
+        <span class="mini-orbit"></span>
+        <span>ODES · Güvenli okul için ortak adım</span>
+        <small>Demo prototipi</small>
+      </div>
+
     </section>
+
     <main class="auth-main">
-      <div class="auth-card">
+
+      <div class="auth-card auth-card-redesign">
+
+        <div class="mobile-brand">
+          <span class="mobile-brand-mark">O</span>
+          <span>
+            <b>ODES</b>
+            <small>Güvenli Okul Platformu</small>
+          </span>
+        </div>
+
+        <div class="welcome-mark">✦</div>
+
+        <span class="form-kicker">HESAP OLUŞTUR</span>
+
         <div id="formWrap">
-          <h1>Kayıt ol</h1>
-          <p class="muted" style="margin-bottom:18px">Bilgilerinizi girerek demo hesabı oluşturun.</p>
-          <div class="alert warn" role="note"><span id="warnIc"></span><span><b>Demo modu:</b> Şifre alanı yalnızca form doğrulamasını göstermek içindir; şifre saklanmaz ve hiçbir yere gönderilmez.</span></div>
+
+          <h1>ODES'e katılın</h1>
+
+          <p class="muted auth-subtitle">
+            Bilgilerinizi girerek demo hesabınızı oluşturun.
+          </p>
+
+          <div class="alert warn" role="note">
+            <span id="warnIc"></span>
+            <span>
+              <b>Demo modu:</b>
+              Bu prototipte şifre saklanmaz veya herhangi bir yere gönderilmez.
+              Öğretmen hesapları yönetici onayı gerektirir.
+            </span>
+          </div>
+
           <div id="formAlert" role="alert"></div>
+
           <form id="regForm" novalidate>
+
             <div class="field">
               <label for="name">Ad soyad</label>
-              <input class="input" id="name" type="text" autocomplete="name" required>
+
+              <input
+                class="input"
+                id="name"
+                type="text"
+                autocomplete="name"
+                placeholder="Adınızı ve soyadınızı girin"
+                required
+              >
+
               <span class="err" id="nameErr"></span>
             </div>
+
             <div class="field">
-              <label for="email">E-posta</label>
-              <input class="input" id="email" type="email" autocomplete="email" required>
+              <label for="email">E-posta adresi</label>
+
+              <input
+                class="input"
+                id="email"
+                type="email"
+                autocomplete="email"
+                placeholder="ornek@okul.com"
+                required
+              >
+
               <span class="err" id="emailErr"></span>
             </div>
+
             <div class="row">
+
               <div class="field">
-                <label for="role">Rol</label>
+                <label for="role">Hesap türü</label>
+
                 <select class="select" id="role">
                   <option value="student">Öğrenci</option>
                   <option value="teacher">Öğretmen</option>
                 </select>
               </div>
+
               <div class="field" id="classField">
                 <label for="class">Sınıf</label>
+
                 <select class="select" id="class"></select>
+
                 <span class="err" id="classErr"></span>
               </div>
+
               <div class="field" id="branchField" hidden>
                 <label for="branch">Branş</label>
-                <input class="input" id="branch" type="text" placeholder="Örn. Kimya">
+
+                <input
+                  class="input"
+                  id="branch"
+                  type="text"
+                  placeholder="Örn. Matematik"
+                >
+
                 <span class="err" id="branchErr"></span>
               </div>
+
             </div>
+
             <div class="field">
               <label for="password">Şifre</label>
-              <input class="input" id="password" type="password" autocomplete="new-password" required>
-              <div class="meter" aria-hidden="true"><i id="meterBar"></i></div>
-              <span class="hint" id="meterTxt">En az 8 karakter; harf ve rakam içermeli.</span>
+
+              <input
+                class="input"
+                id="password"
+                type="password"
+                autocomplete="new-password"
+                placeholder="En az 8 karakter"
+                required
+              >
+
+              <div class="meter" aria-hidden="true">
+                <i id="meterBar"></i>
+              </div>
+
+              <span class="hint" id="meterTxt">
+                En az 8 karakter; harf ve rakam içermeli.
+              </span>
+
               <span class="err" id="passErr"></span>
             </div>
+
             <div class="field">
-              <label for="password2">Şifre (tekrar)</label>
-              <input class="input" id="password2" type="password" autocomplete="new-password" required>
+              <label for="password2">Şifreyi tekrar girin</label>
+
+              <input
+                class="input"
+                id="password2"
+                type="password"
+                autocomplete="new-password"
+                placeholder="Şifrenizi tekrar girin"
+                required
+              >
+
               <span class="err" id="pass2Err"></span>
             </div>
+
             <div class="field">
-              <label class="check-row"><input type="checkbox" id="terms"><span>Demo kullanım koşullarını okudum ve kabul ediyorum.</span></label>
+              <label class="check-row">
+                <input type="checkbox" id="terms">
+                <span>
+                  Demo kullanım koşullarını okudum ve kabul ediyorum.
+                </span>
+              </label>
+
               <span class="err" id="termsErr"></span>
             </div>
-            <button class="btn btn-primary btn-block" type="submit">Kayıt ol</button>
+
+            <button
+              class="btn btn-primary btn-block auth-submit"
+              type="submit"
+            >
+              <span>Hesap oluştur</span>
+              <span aria-hidden="true">→</span>
+            </button>
+
           </form>
-          <p class="auth-foot">Zaten hesabınız var mı? <a href="login.html">Giriş yap</a></p>
+
+          <p class="auth-foot">
+            Zaten hesabınız var mı?
+            <a href="login.html">Giriş yap →</a>
+          </p>
+
         </div>
+
         <div id="doneWrap" hidden></div>
+
+        <div class="auth-legal">
+          ODES · Güvenli ve düzenli okul iletişimi
+        </div>
+
       </div>
+
     </main>
+
   </div>
-  <script src="assets/js/data.js"></script>
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/pages/register.js"></script>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script src="register.js"></script>
+
 </body>
 </html>
