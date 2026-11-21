@@ -1,3 +1,4 @@
+
 /* ODES demo prototipi - ortak çekirdek: kabuk, menü, modal, toast, gelen kutusu, grafikler */
 (function (global) {
   'use strict';
@@ -15,6 +16,7 @@
   const fmtD = iso => iso ? new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : '—';
   const fmtLong = d => (d || new Date()).toLocaleDateString('tr-TR', { weekday: 'long', day: 'numeric', month: 'long' });
   const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x.getTime(); };
+
   function relDue(iso, done) {
     if (done) return { text: 'Tamamlandı', cls: 'b-success' };
     const days = Math.round((startOfDay(iso) - startOfDay(Date.now())) / ODES.DAY);
@@ -23,12 +25,19 @@
     if (days === 1) return { text: 'Yarın', cls: 'b-warning' };
     return { text: days + ' gün kaldı', cls: 'b-neutral' };
   }
+
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
-  function initials(name) { return String(name).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toLocaleUpperCase('tr-TR'); }
+
+  function initials(name) {
+    return String(name).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toLocaleUpperCase('tr-TR');
+  }
+
   function avatar(name, cls) {
-    let h = 0; String(name).split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) % 360; });
+    let h = 0;
+    String(name).split('').forEach(c => { h = (h * 31 + c.charCodeAt(0)) % 360; });
     return '<span class="avatar ' + (cls || '') + '" style="--hue:' + h + '" aria-hidden="true">' + esc(initials(name)) + '</span>';
   }
+
   const typeBadge = t => '<span class="badge ' + ({ duyuru: 'b-info', odev: 'b-primary', sinav: 'b-warning', acil: 'b-danger' }[t] || 'b-neutral') + '">' + esc(ODES.TYPES[t] || t) + '</span>';
   const statusBadge = s => '<span class="badge ' + ({ draft: 'b-neutral', scheduled: 'b-info', sent: 'b-success', cancelled: 'b-danger' }[s] || 'b-neutral') + '">' + esc(ODES.STATUSES[s] || s) + '</span>';
   const roleBadge = r => '<span class="badge ' + ({ student: 'b-info', teacher: 'b-primary', admin: 'b-warning' }[r] || 'b-neutral') + '">' + esc(ODES.ROLES[r] || r) + '</span>';
@@ -65,24 +74,39 @@
     list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
     inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>'
   };
+
   const icon = (name, size) => '<svg class="ic" width="' + (size || 18) + '" height="' + (size || 18) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || '') + '</svg>';
 
   /* ---------- Toast / modal ---------- */
   function toast(msg, type) {
     let wrap = $('.toasts');
-    if (!wrap) { wrap = document.createElement('div'); wrap.className = 'toasts'; wrap.setAttribute('role', 'status'); wrap.setAttribute('aria-live', 'polite'); document.body.appendChild(wrap); }
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.className = 'toasts';
+      wrap.setAttribute('role', 'status');
+      wrap.setAttribute('aria-live', 'polite');
+      document.body.appendChild(wrap);
+    }
     const t = document.createElement('div');
     t.className = 'toast ' + (type || '');
     t.innerHTML = icon(type === 'error' ? 'alert' : 'check') + '<span>' + esc(msg) + '</span>';
     wrap.appendChild(t);
     setTimeout(() => { t.remove(); }, 3800);
   }
-  function flash(msg, type) { try { sessionStorage.setItem('odes.flash', JSON.stringify({ msg, type: type || 'success' })); } catch (e) { /* yoksay */ } }
+
+  function flash(msg, type) {
+    try { sessionStorage.setItem('odes.flash', JSON.stringify({ msg, type: type || 'success' })); } catch (e) { }
+  }
+
   function showFlash() {
     try {
       const raw = sessionStorage.getItem('odes.flash');
-      if (raw) { sessionStorage.removeItem('odes.flash'); const f = JSON.parse(raw); toast(f.msg, f.type); }
-    } catch (e) { /* yoksay */ }
+      if (raw) {
+        sessionStorage.removeItem('odes.flash');
+        const f = JSON.parse(raw);
+        toast(f.msg, f.type);
+      }
+    } catch (e) { }
   }
 
   function modal(opt) {
@@ -91,40 +115,55 @@
     back.innerHTML = '<div class="modal ' + (opt.size || '') + '" role="dialog" aria-modal="true" aria-label="' + esc(opt.title) + '">' +
       '<div class="modal-h"><h3>' + esc(opt.title) + '</h3><button class="icon-btn" type="button" data-close aria-label="Kapat">' + icon('x') + '</button></div>' +
       '<div class="modal-b"></div><div class="modal-f"></div></div>';
+
     const box = $('.modal', back), body = $('.modal-b', back), foot = $('.modal-f', back);
-    if (typeof opt.html === 'string') body.innerHTML = opt.html; else if (opt.html) body.appendChild(opt.html);
+    if (typeof opt.html === 'string') body.innerHTML = opt.html;
+    else if (opt.html) body.appendChild(opt.html);
+
     const prevFocus = document.activeElement;
     let closed = false;
+
     function close() {
-      if (closed) return; closed = true;
-      document.removeEventListener('keydown', onKey); back.remove();
+      if (closed) return;
+      closed = true;
+      document.removeEventListener('keydown', onKey);
+      back.remove();
       if (prevFocus && prevFocus.focus && document.body.contains(prevFocus)) prevFocus.focus();
       if (opt.onClose) opt.onClose();
     }
+
     function onKey(e) { if (e.key === 'Escape') close(); }
+
     (opt.actions || []).forEach(a => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'btn ' + (a.kind === 'primary' ? 'btn-primary' : a.kind === 'danger' ? 'btn-danger' : 'btn-ghost');
       b.textContent = a.label;
-      b.addEventListener('click', () => { const r = a.onClick ? a.onClick(close, box) : undefined; if (r !== false) close(); });
+      b.addEventListener('click', () => {
+        const r = a.onClick ? a.onClick(close, box) : undefined;
+        if (r !== false) close();
+      });
       foot.appendChild(b);
     });
+
     back.addEventListener('mousedown', e => { if (e.target === back) close(); });
     $('[data-close]', back).addEventListener('click', close);
     document.addEventListener('keydown', onKey);
     document.body.appendChild(back);
+
     const first = $('input,select,textarea,button.btn-primary', body) || $('[data-close]', back);
     if (first) first.focus();
     if (opt.onOpen) opt.onOpen(box, close);
     return close;
   }
+
   function confirmDialog(opt) {
     return new Promise(resolve => {
       let answered = false;
       const done = v => { if (!answered) { answered = true; resolve(v); } };
       modal({
-        title: opt.title, html: '<p>' + esc(opt.message) + '</p>',
+        title: opt.title,
+        html: '<p>' + esc(opt.message) + '</p>',
         actions: [
           { label: 'Vazgeç', onClick: () => { done(false); } },
           { label: opt.confirmLabel || 'Onayla', kind: opt.danger ? 'danger' : 'primary', onClick: () => { done(true); } }
@@ -141,8 +180,11 @@
       { label: 'Ödevlerim', page: 'student', hash: 'assignments', icon: 'book' },
       { label: 'Notlarım', page: 'student', hash: 'grades', icon: 'chart' },
       { label: 'Ders programı', page: 'student', hash: 'schedule', icon: 'calendar' },
-      { label: 'Bildirimlerim', page: 'student', hash: 'inbox', icon: 'bell' }
+      { label: 'Bildirimlerim', page: 'student', hash: 'inbox', icon: 'bell' },
+      { label: 'Sorun bildir', page: 'student', hash: 'createReport', icon: 'alert' },
+      { label: 'Bildirim takibi', page: 'student', hash: 'reports', icon: 'clipboard' }
     ],
+
     teacher: [
       { label: 'Genel bakış', page: 'teacher', hash: 'overview', icon: 'home' },
       { label: 'Sınıflarım', page: 'teacher', hash: 'classes', icon: 'users' },
@@ -153,6 +195,7 @@
       { label: 'Bildirim oluştur', page: 'notification-create', icon: 'plus' },
       { label: 'Geçmiş ve durum', page: 'notification-history', icon: 'history' }
     ],
+
     admin: [
       { label: 'Genel bakış', page: 'admin', hash: 'overview', icon: 'home' },
       { label: 'Kullanıcılar', page: 'admin', hash: 'users', icon: 'users' },
@@ -166,6 +209,7 @@
       { label: 'İstatistikler', page: 'admin-stats', icon: 'chart' }
     ]
   };
+
   const state = { page: '', defaultHash: '' };
 
   function updateNav() {
@@ -173,7 +217,8 @@
     $$('.nav a').forEach(a => {
       const on = a.dataset.page === state.page && (!a.dataset.hash || a.dataset.hash === cur);
       a.classList.toggle('active', on);
-      if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      if (on) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
     });
   }
 
@@ -182,6 +227,7 @@
     const navHtml = nav.map(i => i.group
       ? '<div class="nav-label">' + esc(i.group) + '</div>'
       : '<a href="' + i.page + '.html' + (i.hash ? '#' + i.hash : '') + '" data-page="' + i.page + '"' + (i.hash ? ' data-hash="' + i.hash + '"' : '') + '>' + icon(i.icon) + '<span>' + esc(i.label) + '</span></a>').join('');
+
     const html =
       '<div class="layout">' +
       '<div class="scrim" id="scrim"></div>' +
@@ -204,10 +250,16 @@
         '</header>' +
         '<main id="content" tabindex="-1"></main>' +
       '</div></div>';
+
     document.body.insertAdjacentHTML('afterbegin', html);
 
     const sidebar = $('#sidebar'), scrim = $('#scrim'), menuBtn = $('#menuBtn');
-    const setMenu = open => { sidebar.classList.toggle('open', open); scrim.classList.toggle('show', open); menuBtn.setAttribute('aria-expanded', String(open)); };
+    const setMenu = open => {
+      sidebar.classList.toggle('open', open);
+      scrim.classList.toggle('show', open);
+      menuBtn.setAttribute('aria-expanded', String(open));
+    };
+
     menuBtn.addEventListener('click', () => setMenu(!sidebar.classList.contains('open')));
     scrim.addEventListener('click', () => setMenu(false));
     $('#nav').addEventListener('click', e => { if (e.target.closest('a')) setMenu(false); });
@@ -215,44 +267,80 @@
     const doLogout = () => { store.logout(); location.href = 'login.html'; };
     $('#logoutBtn').addEventListener('click', doLogout);
     $('#logoutBtn2').addEventListener('click', doLogout);
+
     $('#resetBtn').addEventListener('click', async () => {
       closeDDs();
-      const ok = await confirmDialog({ title: 'Demo verilerini sıfırla', message: 'Bu tarayıcıdaki tüm demo verileri (kayıtlar, bildirimler, yoklamalar) başlangıç haline döner. Devam edilsin mi?', confirmLabel: 'Sıfırla', danger: true });
+      const ok = await confirmDialog({
+        title: 'Demo verilerini sıfırla',
+        message: 'Bu tarayıcıdaki tüm demo verileri (kayıtlar, bildirimler, yoklamalar) başlangıç haline döner. Devam edilsin mi?',
+        confirmLabel: 'Sıfırla',
+        danger: true
+      });
       if (!ok) return;
       store.reset();
       flash('Demo verileri sıfırlandı.');
       location.href = homeOf(user.role);
     });
 
-    function closeDDs() { ['bell', 'user'].forEach(k => { $('#' + k + 'Panel').hidden = true; $('#' + k + 'Btn').setAttribute('aria-expanded', 'false'); }); }
+    function closeDDs() {
+      ['bell', 'user'].forEach(k => {
+        $('#' + k + 'Panel').hidden = true;
+        $('#' + k + 'Btn').setAttribute('aria-expanded', 'false');
+      });
+    }
+
     ['bell', 'user'].forEach(k => {
       $('#' + k + 'Btn').addEventListener('click', e => {
         e.stopPropagation();
-        const p = $('#' + k + 'Panel'); const open = p.hidden;
-        closeDDs(); p.hidden = !open; $('#' + k + 'Btn').setAttribute('aria-expanded', String(open));
+        const p = $('#' + k + 'Panel');
+        const open = p.hidden;
+        closeDDs();
+        p.hidden = !open;
+        $('#' + k + 'Btn').setAttribute('aria-expanded', String(open));
       });
     });
+
     document.addEventListener('click', e => { if (!e.target.closest('.dd')) closeDDs(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDDs(); });
-    $('#bellReadAll').addEventListener('click', () => { store.markAllRead(user.id); refreshBell(); window.dispatchEvent(new Event('odes:inbox')); });
+
+    $('#bellReadAll').addEventListener('click', () => {
+      store.markAllRead(user.id);
+      refreshBell();
+      window.dispatchEvent(new Event('odes:inbox'));
+    });
+
     $('#bellList').addEventListener('click', e => {
-      const it = e.target.closest('[data-nid]'); if (!it) return;
-      store.markRead(it.dataset.nid, user.id); refreshBell(); window.dispatchEvent(new Event('odes:inbox'));
+      const it = e.target.closest('[data-nid]');
+      if (!it) return;
+      store.markRead(it.dataset.nid, user.id);
+      refreshBell();
+      window.dispatchEvent(new Event('odes:inbox'));
       location.href = homeOf(user.role) + '#inbox';
     });
+
     refreshBell();
     window.addEventListener('hashchange', updateNav);
   }
 
   function refreshBell() {
-    const user = store.currentUser(); if (!user) return;
+    const user = store.currentUser();
+    if (!user) return;
+
     const list = store.inboxFor(user.id);
     const unread = list.filter(x => !x.read).length;
     const badge = $('#bellBadge');
-    if (badge) { badge.textContent = unread > 9 ? '9+' : String(unread); badge.hidden = !unread; }
+
+    if (badge) {
+      badge.textContent = unread > 9 ? '9+' : String(unread);
+      badge.hidden = !unread;
+    }
+
     const panel = $('#bellList');
     if (panel) {
-      panel.innerHTML = list.slice(0, 5).map(x => '<button type="button" class="dd-item ' + (x.read ? '' : 'unread') + '" data-nid="' + esc(x.n.id) + '"><b>' + esc(x.n.title) + '</b><small>' + esc(fmtDT(x.n.sentAt)) + '</small></button>').join('') || '<p class="empty-sm">Henüz bildiriminiz yok.</p>';
+      panel.innerHTML = list.slice(0, 5).map(x =>
+        '<button type="button" class="dd-item ' + (x.read ? '' : 'unread') + '" data-nid="' + esc(x.n.id) + '"><b>' +
+        esc(x.n.title) + '</b><small>' + esc(fmtDT(x.n.sentAt)) + '</small></button>'
+      ).join('') || '<p class="empty-sm">Henüz bildiriminiz yok.</p>';
     }
   }
 
@@ -260,16 +348,24 @@
   function sections(root, defs, def) {
     state.defaultHash = def;
     let first = true;
+
     function show() {
       const id = (location.hash || '').slice(1);
       const key = defs[id] ? id : def;
-      root.innerHTML = '<div class="page"><div class="page-head"><div><h1>' + esc(defs[key].title) + '</h1>' + (defs[key].sub ? '<p class="muted">' + esc(defs[key].sub) + '</p>' : '') + '</div><div class="page-actions" id="pageActions"></div></div><div class="page-body"></div></div>';
+
+      root.innerHTML =
+        '<div class="page"><div class="page-head"><div><h1>' + esc(defs[key].title) + '</h1>' +
+        (defs[key].sub ? '<p class="muted">' + esc(defs[key].sub) + '</p>' : '') +
+        '</div><div class="page-actions" id="pageActions"></div></div><div class="page-body"></div></div>';
+
       const body = $('.page-body', root);
       defs[key].render(body, show);
       updateNav();
+
       if (!first) window.scrollTo(0, 0);
       first = false;
     }
+
     window.addEventListener('hashchange', show);
     show();
     return show;
@@ -278,36 +374,63 @@
   /* ---------- Paylaşılan bileşenler ---------- */
   function statCard(o) {
     const tag = o.href ? 'a' : 'div';
-    return '<' + tag + ' class="card stat"' + (o.href ? ' href="' + o.href + '"' : '') + '><span class="ico tone-' + (o.tone || 'primary') + '">' + icon(o.icon, 22) + '</span><div><b>' + esc(o.value) + '</b><span>' + esc(o.label) + '</span></div></' + tag + '>';
+    return '<' + tag + ' class="card stat"' + (o.href ? ' href="' + o.href + '"' : '') + '><span class="ico tone-' +
+      (o.tone || 'primary') + '">' + icon(o.icon, 22) + '</span><div><b>' + esc(o.value) +
+      '</b><span>' + esc(o.label) + '</span></div></' + tag + '>';
   }
-  function emptyState(text, ic) { return '<div class="empty">' + icon(ic || 'inbox', 32) + '<p>' + esc(text) + '</p></div>'; }
+
+  function emptyState(text, ic) {
+    return '<div class="empty">' + icon(ic || 'inbox', 32) + '<p>' + esc(text) + '</p></div>';
+  }
 
   function renderInbox(el, user) {
     let filter = 'all', openId = null;
+
     function draw() {
       const all = store.inboxFor(user.id);
       const unread = all.filter(x => !x.read).length;
       const urgent = all.filter(x => x.n.type === 'acil').length;
       const items = filter === 'unread' ? all.filter(x => !x.read) : filter === 'urgent' ? all.filter(x => x.n.type === 'acil') : all;
+
       el.innerHTML =
         '<div class="toolbar"><div class="tabs" role="tablist">' +
-        [['all', 'Tümü', all.length], ['unread', 'Okunmamış', unread], ['urgent', 'Acil', urgent]].map(t => '<button type="button" class="tab ' + (filter === t[0] ? 'active' : '') + '" data-f="' + t[0] + '">' + t[1] + '<small>' + t[2] + '</small></button>').join('') +
-        '</div><button class="btn btn-sm" type="button" id="readAll"' + (unread ? '' : ' disabled') + '>' + icon('check', 16) + 'Tümünü okundu işaretle</button></div>' +
+        [['all', 'Tümü', all.length], ['unread', 'Okunmamış', unread], ['urgent', 'Acil', urgent]].map(t =>
+          '<button type="button" class="tab ' + (filter === t[0] ? 'active' : '') + '" data-f="' + t[0] + '">' +
+          t[1] + '<small>' + t[2] + '</small></button>'
+        ).join('') +
+        '</div><button class="btn btn-sm" type="button" id="readAll"' + (unread ? '' : ' disabled') + '>' +
+        icon('check', 16) + 'Tümünü okundu işaretle</button></div>' +
         (items.map(x => {
           const n = x.n, sender = store.user(n.senderId), open = openId === n.id;
-          return '<article class="msg ' + (x.read ? '' : 'unread') + ' ' + n.type + '"><button type="button" class="msg-head" data-id="' + esc(n.id) + '" aria-expanded="' + open + '">' +
-            '<span class="grow"><b>' + esc(n.title) + '</b><small class="muted">' + esc(sender ? sender.name : 'Bilinmeyen gönderen') + ' · ' + esc(fmtDT(n.sentAt)) + '</small></span>' + typeBadge(n.type) + '</button>' +
+          return '<article class="msg ' + (x.read ? '' : 'unread') + ' ' + n.type + '"><button type="button" class="msg-head" data-id="' +
+            esc(n.id) + '" aria-expanded="' + open + '"><span class="grow"><b>' + esc(n.title) +
+            '</b><small class="muted">' + esc(sender ? sender.name : 'Bilinmeyen gönderen') + ' · ' +
+            esc(fmtDT(n.sentAt)) + '</small></span>' + typeBadge(n.type) + '</button>' +
             (open ? '<div class="msg-body">' + esc(n.body) + '</div>' : '') + '</article>';
         }).join('') || emptyState('Bu filtrede bildirim yok.'));
-      $$('[data-f]', el).forEach(b => b.addEventListener('click', () => { filter = b.dataset.f; draw(); }));
+
+      $$('[data-f]', el).forEach(b => b.addEventListener('click', () => {
+        filter = b.dataset.f;
+        draw();
+      }));
+
       $$('.msg-head', el).forEach(b => b.addEventListener('click', () => {
         const id = b.dataset.id;
         openId = openId === id ? null : id;
-        store.markRead(id, user.id); refreshBell(); draw();
+        store.markRead(id, user.id);
+        refreshBell();
+        draw();
       }));
+
       const ra = $('#readAll', el);
-      if (ra) ra.addEventListener('click', () => { store.markAllRead(user.id); refreshBell(); draw(); toast('Tüm bildirimler okundu olarak işaretlendi.', 'success'); });
+      if (ra) ra.addEventListener('click', () => {
+        store.markAllRead(user.id);
+        refreshBell();
+        draw();
+        toast('Tüm bildirimler okundu olarak işaretlendi.', 'success');
+      });
     }
+
     window.addEventListener('odes:inbox', () => { if (document.body.contains(el)) draw(); });
     draw();
   }
@@ -317,53 +440,101 @@
     cols(items, o) {
       o = o || {};
       const max = o.max || Math.max.apply(null, items.map(i => i.value).concat([1]));
-      return '<div class="cols" style="--h:' + (o.height || 200) + 'px" role="img" aria-label="' + esc(o.label || 'Sütun grafik') + '">' + items.map(i =>
-        '<div class="col" title="' + esc(i.label + ': ' + i.value) + '"><div class="col-bar-wrap"><span class="col-val">' + esc(i.value) + '</span><div class="col-bar" style="height:' + Math.max(pct(i.value, max), i.value ? 3 : 0) + '%;background:' + (o.color || 'var(--c1)') + '"></div></div><span class="col-lab">' + esc(i.label) + '</span></div>').join('') + '</div>';
+      return '<div class="cols" style="--h:' + (o.height || 200) + 'px" role="img" aria-label="' +
+        esc(o.label || 'Sütun grafik') + '">' + items.map(i =>
+        '<div class="col" title="' + esc(i.label + ': ' + i.value) +
+        '"><div class="col-bar-wrap"><span class="col-val">' + esc(i.value) +
+        '</span><div class="col-bar" style="height:' + Math.max(pct(i.value, max), i.value ? 3 : 0) +
+        '%;background:' + (o.color || 'var(--c1)') + '"></div></div><span class="col-lab">' +
+        esc(i.label) + '</span></div>'
+      ).join('') + '</div>';
     },
+
     hbars(items, o) {
       o = o || {};
       if (!items.length) return emptyState('Gösterilecek veri yok.', 'chart');
       return '<div class="hbars">' + items.map((i, k) =>
-        '<div><div class="hbar-top"><span>' + esc(i.label) + '</span><b>' + esc(i.text != null ? i.text : i.value + '%') + '</b></div><div class="hbar-track"><i style="width:' + Math.min(100, Math.max(0, i.value)) + '%;background:' + (i.color || o.color || 'var(--c' + ((k % 5) + 1) + ')') + '"></i></div></div>').join('') + '</div>';
+        '<div><div class="hbar-top"><span>' + esc(i.label) + '</span><b>' +
+        esc(i.text != null ? i.text : i.value + '%') + '</b></div><div class="hbar-track"><i style="width:' +
+        Math.min(100, Math.max(0, i.value)) + '%;background:' +
+        (i.color || o.color || 'var(--c' + ((k % 5) + 1) + ')') + '"></i></div></div>'
+      ).join('') + '</div>';
     },
+
     donut(items, o) {
       o = o || {};
       const total = items.reduce((s, i) => s + i.value, 0);
       if (!total) return emptyState('Gösterilecek veri yok.', 'chart');
+
       let acc = 0;
       const segs = items.filter(i => i.value > 0).map(i => {
         const p = i.value / total * 100;
-        const s = '<circle r="15.915" cx="21" cy="21" fill="none" stroke="' + i.color + '" stroke-width="6" stroke-dasharray="' + p.toFixed(3) + ' ' + (100 - p).toFixed(3) + '" stroke-dashoffset="' + (25 - acc).toFixed(3) + '"/>';
-        acc += p; return s;
+        const s = '<circle r="15.915" cx="21" cy="21" fill="none" stroke="' + i.color +
+          '" stroke-width="6" stroke-dasharray="' + p.toFixed(3) + ' ' +
+          (100 - p).toFixed(3) + '" stroke-dashoffset="' + (25 - acc).toFixed(3) + '"/>';
+        acc += p;
+        return s;
       }).join('');
-      return '<div class="donut-wrap"><svg class="donut" viewBox="0 0 42 42" role="img" aria-label="' + esc(o.label || 'Dağılım') + '"><circle r="15.915" cx="21" cy="21" fill="none" stroke="#e2e8f0" stroke-width="6"/>' + segs +
-        '<text x="21" y="21.6" text-anchor="middle" font-size="7" font-weight="700">' + total + '</text><text x="21" y="27" text-anchor="middle" font-size="2.6" fill="#64748b" style="fill:#64748b">' + esc(o.center || 'toplam') + '</text></svg>' +
-        '<div class="legend">' + items.map(i => '<span><i style="background:' + i.color + '"></i>' + esc(i.label) + ': <b>' + i.value + '</b></span>').join('') + '</div></div>';
+
+      return '<div class="donut-wrap"><svg class="donut" viewBox="0 0 42 42" role="img" aria-label="' +
+        esc(o.label || 'Dağılım') + '"><circle r="15.915" cx="21" cy="21" fill="none" stroke="#e2e8f0" stroke-width="6"/>' +
+        segs + '<text x="21" y="21.6" text-anchor="middle" font-size="7" font-weight="700">' + total +
+        '</text><text x="21" y="27" text-anchor="middle" font-size="2.6" fill="#64748b" style="fill:#64748b">' +
+        esc(o.center || 'toplam') + '</text></svg><div class="legend">' +
+        items.map(i => '<span><i style="background:' + i.color + '"></i>' + esc(i.label) +
+          ': <b>' + i.value + '</b></span>').join('') + '</div></div>';
     }
   };
 
   function downloadCSV(filename, rows) {
-    const csv = rows.map(r => r.map(c => '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+    const csv = rows.map(r => r.map(c =>
+      '"' + String(c == null ? '' : c).replace(/"/g, '""') + '"'
+    ).join(';')).join('\r\n');
+
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   /* ---------- Önyükleme ---------- */
   function boot() {
     store.load();
     store.processScheduled();
+
     const body = document.body;
     const page = body.dataset.page;
     const roles = (body.dataset.roles || '').split(',').filter(Boolean);
     state.page = page;
+
     const fn = ODES.pages[page];
-    if (!roles.length) { if (fn) fn(); showFlash(); return; }
+    if (!roles.length) {
+      if (fn) fn();
+      showFlash();
+      return;
+    }
 
     const user = store.currentUser();
-    if (!user) { location.replace('login.html'); return; }
-    if (user.status !== 'active') { store.logout(); flash('Hesabınız artık aktif değil.', 'error'); location.replace('login.html'); return; }
-    if (!roles.includes(user.role)) { location.replace(homeOf(user.role)); return; }
+    if (!user) {
+      location.replace('login.html');
+      return;
+    }
+
+    if (user.status !== 'active') {
+      store.logout();
+      flash('Hesabınız artık aktif değil.', 'error');
+      location.replace('login.html');
+      return;
+    }
+
+    if (!roles.includes(user.role)) {
+      location.replace(homeOf(user.role));
+      return;
+    }
 
     buildShell(user, body.dataset.title);
     document.title = (body.dataset.title || 'ODES') + ' · ODES';
@@ -371,7 +542,14 @@
     showFlash();
   }
 
-  Object.assign(ODES, { $, $$, esc, icon, avatar, fmtDT, fmtD, fmtLong, relDue, pct, initials, typeBadge, statusBadge, roleBadge, homeOf, toast, flash, modal, confirmDialog, sections, statCard, emptyState, renderInbox, refreshBell, charts, downloadCSV });
+  Object.assign(ODES, {
+    $, $$, esc, icon, avatar, fmtDT, fmtD, fmtLong, relDue, pct, initials,
+    typeBadge, statusBadge, roleBadge, homeOf, toast, flash, modal,
+    confirmDialog, sections, statCard, emptyState, renderInbox,
+    refreshBell, charts, downloadCSV
+  });
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+
 })(window);
