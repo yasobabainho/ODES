@@ -1,585 +1,231 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ODES | Güvenli Okul</title>
-
-<style>
-:root {
-  --bg: #F6F2E9;
-  --surface: #FFFDF7;
-  --blue: #2878D0;
-  --navy: #194B82;
-  --pale: #DCEBFA;
-  --border: #E9E2D5;
-  --text: #26384B;
-  --muted: #8290A0;
-}
-
-* { box-sizing: border-box; }
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: Arial, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-
-.page {
-  min-height: 100vh;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  padding: 35px;
-  gap: 30px;
-}
-
-.left {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 25px;
-}
-
-.auth {
-  width: 100%;
-  max-width: 440px;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 38px;
-}
-
-.logo {
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: linear-gradient(145deg, #2878D0, #194B82);
-  display: grid;
-  place-items: center;
-  color: white;
-  font-size: 23px;
-  font-weight: bold;
-  box-shadow: 0 8px 20px #2878D033;
-}
-
-.brand h2 {
-  margin: 0;
-  color: var(--navy);
-  letter-spacing: 3px;
-}
-
-.brand small {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-h1 {
-  font-size: 31px;
-  margin: 0 0 10px;
-  color: var(--navy);
-}
-
-.subtitle {
-  color: var(--muted);
-  line-height: 1.6;
-  margin-bottom: 28px;
-}
-
-.tabs {
-  display: flex;
-  padding: 5px;
-  background: #EDEBE4;
-  border-radius: 14px;
-  margin-bottom: 25px;
-}
-
-.tabs button {
-  flex: 1;
-  border: 0;
-  padding: 13px;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--muted);
-  font-weight: bold;
-  cursor: pointer;
-}
-
-.tabs button.active {
-  background: var(--surface);
-  color: var(--blue);
-  box-shadow: 0 3px 12px #26384B10;
-}
-
-.form-panel { display: none; }
-.form-panel.active { display: block; animation: appear .3s ease; }
-
-@keyframes appear {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.field { margin-bottom: 16px; }
-
-label {
-  display: block;
-  font-size: 13px;
-  font-weight: bold;
-  margin-bottom: 8px;
-}
-
-input, select {
-  width: 100%;
-  padding: 14px 15px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
-  outline: none;
-  font-size: 14px;
-}
-
-input:focus, select:focus {
-  border-color: var(--blue);
-  box-shadow: 0 0 0 3px #2878D018;
-}
-
-.password-wrap { position: relative; }
-
-.password-wrap input { padding-right: 65px; }
-
-.show-password {
-  position: absolute;
-  right: 13px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: 0;
-  background: transparent;
-  color: var(--blue);
-  cursor: pointer;
-  font-size: 12px;
-}
-
-.row-between {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  font-size: 12px;
-  margin: 8px 0 20px;
-}
-
-.check {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: normal;
-  color: var(--muted);
-}
-
-.check input {
-  width: auto;
-  accent-color: var(--blue);
-}
-
-a {
-  color: var(--blue);
-  text-decoration: none;
-}
-
-.primary {
-  width: 100%;
-  padding: 15px;
-  border: 0;
-  border-radius: 12px;
-  background: linear-gradient(110deg, var(--blue), var(--navy));
-  color: white;
-  font-size: 15px;
-  font-weight: bold;
-  cursor: pointer;
-  box-shadow: 0 8px 18px #2878D02A;
-  transition: .2s;
-}
-
-.primary:hover { transform: translateY(-2px); }
-
-.message {
-  display: none;
-  padding: 12px;
-  margin-top: 15px;
-  border-radius: 10px;
-  background: var(--pale);
-  color: var(--navy);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.message.show { display: block; }
-
-.bottom-text {
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  margin-top: 22px;
-}
-
-.visual {
-  min-height: 650px;
-  border-radius: 30px;
-  background:
-    radial-gradient(circle at 75% 20%, #DCEBFA 0, transparent 35%),
-    radial-gradient(circle at 20% 80%, #C7E3F5 0, transparent 40%),
-    linear-gradient(145deg, #FDFBF4, #E7F1F8);
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-}
-
-.orbit {
-  position: absolute;
-  width: 430px;
-  height: 430px;
-  border: 1px solid #2878D044;
-  border-radius: 50%;
-  animation: rotate 25s linear infinite;
-}
-
-.orbit::before, .orbit::after {
-  content: "";
-  position: absolute;
-  border: 1px solid #2878D033;
-  border-radius: 50%;
-}
-
-.orbit::before {
-  inset: 45px -45px;
-  transform: rotate(45deg);
-}
-
-.orbit::after {
-  inset: -45px 45px;
-  transform: rotate(-35deg);
-}
-
-@keyframes rotate { to { transform: rotate(360deg); } }
-
-.art {
-  position: relative;
-  width: 310px;
-  height: 310px;
-  display: grid;
-  place-items: center;
-}
-
-.blob {
-  position: absolute;
-  width: 210px;
-  height: 245px;
-  border-radius: 48% 52% 60% 40%;
-  background: linear-gradient(145deg, #65B5EA, #2878D0 60%, #194B82);
-  transform: rotate(35deg);
-  box-shadow: 0 25px 60px #2878D044;
-  animation: float 5s ease-in-out infinite;
-}
-
-.blob::before {
-  content: "";
-  position: absolute;
-  width: 115px;
-  height: 150px;
-  background: linear-gradient(145deg, #DCEBFA, #FFFDF7);
-  border-radius: 50%;
-  left: 48px;
-  top: 35px;
-  transform: rotate(-25deg);
-}
-
-.blob::after {
-  content: "";
-  position: absolute;
-  width: 75px;
-  height: 75px;
-  background: #78C8DD;
-  border-radius: 50%;
-  right: -18px;
-  top: -5px;
-}
-
-@keyframes float {
-  0%,100% { transform: translateY(0) rotate(35deg); }
-  50% { transform: translateY(-15px) rotate(42deg); }
-}
-
-.dot {
-  position: absolute;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  background: #2878D0;
-  box-shadow: 0 0 20px #2878D088;
-}
-
-.dot.one { top: 30px; right: 35px; }
-.dot.two { bottom: 45px; left: 25px; width: 9px; height: 9px; }
-.dot.three { top: 100px; left: 0; width: 7px; height: 7px; }
-
-.visual-copy {
-  position: absolute;
-  bottom: 55px;
-  text-align: center;
-  max-width: 420px;
-}
-
-.visual-copy h2 {
-  color: var(--navy);
-  font-size: 25px;
-  margin-bottom: 10px;
-}
-
-.visual-copy p {
-  color: #71869B;
-  line-height: 1.6;
-  font-size: 14px;
-}
-
-@media(max-width: 850px) {
-  .page { grid-template-columns: 1fr; padding: 15px; }
-  .visual { min-height: 300px; grid-row: 1; }
-  .art { transform: scale(.65); height: 210px; }
-  .orbit { width: 250px; height: 250px; }
-  .visual-copy { bottom: 18px; }
-  .visual-copy h2 { font-size: 19px; }
-  .visual-copy p { display: none; }
-  .left { padding: 20px 8px; }
-  .brand { margin-bottom: 25px; }
-}
-
-@media(max-width: 420px) {
-  .page { padding: 10px; gap: 10px; }
-  .visual { min-height: 230px; }
-  h1 { font-size: 27px; }
-}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f8ff">
+  <title>Giriş Yap | ODES</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 
-<body>
-<div class="page">
+<body data-page="login">
 
-  <main class="left">
-    <section class="auth">
+  <div class="auth auth-redesign">
 
-      <div class="brand">
-        <div class="logo">O</div>
-        <div>
-          <h2>ODES</h2>
-          <small>Güvenli Okul, Daha Güvenli Gelecek</small>
+    <section class="auth-side" aria-label="ODES tanıtımı">
+
+      <a class="brand" href="login.html">
+        <span class="logo" id="logoIc"></span>
+        <span>
+          <b>ODES</b>
+          <small>Okul deneyim ve iletişim sistemi</small>
+        </span>
+      </a>
+
+      <div class="auth-hero-copy">
+
+        <span class="eyebrow">
+          <span class="eyebrow-dot"></span>
+          OKULUNUZLA HER AN BAĞLANTIDA
+        </span>
+
+        <h2>
+          Okul yaşamı,<br>
+          <em>tek bir yerde.</em>
+        </h2>
+
+        <p>
+          Öğrenciler, öğretmenler ve yöneticiler için daha düzenli,
+          anlaşılır ve güçlü bir iletişim deneyimi.
+        </p>
+
+        <div class="feature-list">
+
+          <div class="feature-item">
+            <span class="feature-icon">✓</span>
+            <span>
+              <b>Tek merkezden iletişim</b>
+              <small>Duyurular ve bildirimler bir arada</small>
+            </span>
+          </div>
+
+          <div class="feature-item">
+            <span class="feature-icon">↗</span>
+            <span>
+              <b>Kolay takip</b>
+              <small>Okunma durumları ve güncel bilgiler</small>
+            </span>
+          </div>
+
+          <div class="feature-item">
+            <span class="feature-icon">⌘</span>
+            <span>
+              <b>Her role uygun</b>
+              <small>Öğrenci, öğretmen ve yönetici panelleri</small>
+            </span>
+          </div>
+
         </div>
       </div>
 
-      <div id="heading">
-        <h1>Güvenli bir geleceğe hoş geldin.</h1>
-        <p class="subtitle">
-          Bildirimlerini güvenli şekilde ilet ve daha güvenli bir okul ortamına katkıda bulun.
-        </p>
+      <div class="auth-side-bottom">
+        <span class="mini-orbit"></span>
+        <span>ODES · Eğitimde bağlantı, iletişimde kolaylık</span>
+        <small>Demo prototipi</small>
       </div>
-
-      <div class="tabs">
-        <button id="loginTab" class="active" type="button" onclick="switchView('login')">Giriş Yap</button>
-        <button id="registerTab" type="button" onclick="switchView('register')">Kayıt Ol</button>
-      </div>
-
-      <!-- GİRİŞ -->
-      <form id="loginForm" class="form-panel active">
-        <div class="field">
-          <label for="loginEmail">E-posta adresi</label>
-          <input id="loginEmail" type="email" placeholder="ornek@okul.com" required>
-        </div>
-
-        <div class="field">
-          <label for="loginPassword">Şifre</label>
-          <div class="password-wrap">
-            <input id="loginPassword" type="password" placeholder="Şifrenizi girin" required>
-            <button class="show-password" type="button" onclick="togglePassword('loginPassword',this)">Göster</button>
-          </div>
-        </div>
-
-        <div class="row-between">
-          <label class="check">
-            <input type="checkbox" id="rememberMe">
-            Beni hatırla
-          </label>
-          <a href="#" onclick="showInfo(event)">Şifremi unuttum</a>
-        </div>
-
-        <button class="primary" type="submit">Giriş Yap</button>
-        <div class="message" id="loginMessage"></div>
-
-        <p class="bottom-text">
-          Henüz hesabın yok mu?
-          <a href="#" onclick="switchView('register');return false;">Kayıt ol</a>
-        </p>
-      </form>
-
-      <!-- KAYIT -->
-      <form id="registerForm" class="form-panel">
-
-        <div class="field">
-          <label for="fullName">Ad Soyad</label>
-          <input id="fullName" type="text" placeholder="Adınızı ve soyadınızı girin" required>
-        </div>
-
-        <div class="field">
-          <label for="registerEmail">E-posta adresi</label>
-          <input id="registerEmail" type="email" placeholder="ornek@okul.com" required>
-        </div>
-
-        <div class="field">
-          <label for="role">Hesap türü</label>
-          <select id="role" required>
-            <option value="">Hesap türünüzü seçin</option>
-            <option value="student">Öğrenci</option>
-            <option value="teacher">Öğretmen</option>
-          </select>
-        </div>
-
-        <div class="field" id="classField">
-          <label id="classLabel" for="classInfo">Sınıf</label>
-          <input id="classInfo" type="text" placeholder="Örn. 11-A">
-        </div>
-
-        <div class="field">
-          <label for="registerPassword">Şifre</label>
-          <div class="password-wrap">
-            <input id="registerPassword" type="password" minlength="8" placeholder="En az 8 karakter" required>
-            <button class="show-password" type="button" onclick="togglePassword('registerPassword',this)">Göster</button>
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="confirmPassword">Şifre tekrar</label>
-          <div class="password-wrap">
-            <input id="confirmPassword" type="password" minlength="8" placeholder="Şifrenizi tekrar girin" required>
-            <button class="show-password" type="button" onclick="togglePassword('confirmPassword',this)">Göster</button>
-          </div>
-        </div>
-
-        <div class="row-between">
-          <label class="check">
-            <input type="checkbox" id="terms" required>
-            Kullanım koşullarını kabul ediyorum
-          </label>
-        </div>
-
-        <button class="primary" type="submit">Hesap Oluştur</button>
-        <div class="message" id="registerMessage"></div>
-
-        <p class="bottom-text">
-          Zaten hesabın var mı?
-          <a href="#" onclick="switchView('login');return false;">Giriş yap</a>
-        </p>
-      </form>
 
     </section>
-  </main>
 
-  <!-- ABSTRACT GÖRSEL ALANI -->
-  <aside class="visual">
-    <div class="orbit"></div>
-    <div class="art">
-      <div class="blob"></div>
-      <span class="dot one"></span>
-      <span class="dot two"></span>
-      <span class="dot three"></span>
-    </div>
+    <main class="auth-main">
 
-    <div class="visual-copy">
-      <h2>Fark et. Bildir. Birlikte koruyalım.</h2>
-      <p>Her bildirim daha güvenli bir okul ortamı için atılmış önemli bir adımdır.</p>
-    </div>
-  </aside>
+      <div class="auth-card auth-card-redesign">
 
-</div>
+        <div class="mobile-brand">
+          <span class="mobile-brand-mark">O</span>
+          <span>
+            <b>ODES</b>
+            <small>Okul iletişim platformu</small>
+          </span>
+        </div>
 
-<script>
-function switchView(view) {
-  const login = view === "login";
+        <div class="welcome-mark">✦</div>
 
-  document.getElementById("loginForm").classList.toggle("active", login);
-  document.getElementById("registerForm").classList.toggle("active", !login);
-  document.getElementById("loginTab").classList.toggle("active", login);
-  document.getElementById("registerTab").classList.toggle("active", !login);
+        <span class="form-kicker">HOŞ GELDİNİZ</span>
 
-  document.querySelector("#heading h1").textContent =
-    login ? "Güvenli bir geleceğe hoş geldin." : "ODES ailesine katıl.";
+        <h1>Hesabınıza giriş yapın</h1>
 
-  document.querySelector("#heading .subtitle").textContent =
-    login
-      ? "Bildirimlerini güvenli şekilde ilet ve daha güvenli bir okul ortamına katkıda bulun."
-      : "Hesabını oluştur, ODES platformunu kullanmaya başla.";
+        <p class="muted auth-subtitle">
+          Devam etmek için hesap bilgilerinizi girin.
+        </p>
 
-  document.getElementById("loginMessage").classList.remove("show");
-  document.getElementById("registerMessage").classList.remove("show");
-}
+        <div class="alert warn" role="note">
+          <span id="warnIc"></span>
+          <span>
+            <b>Demo modu:</b>
+            Bu prototipte gerçek hesap doğrulaması yapılmaz.
+            Yalnızca e-posta ile eşleşen demo hesabı açılır.
+          </span>
+        </div>
 
-function togglePassword(id, button) {
-  const input = document.getElementById(id);
-  const hidden = input.type === "password";
-  input.type = hidden ? "text" : "password";
-  button.textContent = hidden ? "Gizle" : "Göster";
-}
+        <div id="formAlert" role="alert"></div>
 
-document.getElementById("role").addEventListener("change", function() {
-  const label = document.getElementById("classLabel");
-  const input = document.getElementById("classInfo");
+        <form id="loginForm" novalidate>
 
-  if (this.value === "teacher") {
-    label.textContent = "Branş";
-    input.placeholder = "Örn. Matematik";
-  } else {
-    label.textContent = "Sınıf";
-    input.placeholder = "Örn. 11-A";
-  }
+          <div class="field">
+            <label for="email">E-posta adresi</label>
 
-  input.required = this.value !== "";
-});
+            <div class="input-wrap">
+              <span class="input-symbol">✉</span>
+              <input
+                class="input"
+                id="email"
+                name="email"
+                type="email"
+                autocomplete="username"
+                placeholder="ornek@odes.demo"
+                required
+              >
+            </div>
 
-function showInfo(event) {
-  event.preventDefault();
-  alert("Şifre yenileme özelliğini hesap sistemine bağladığımızda etkinleştireceğiz.");
-}
+            <span class="err" id="emailErr"></span>
+          </div>
 
-document.getElementById("loginForm").addEventListener("submit", function(event) {
-  event.preventDefault();
+          <div class="field">
+            <label for="password">Şifre</label>
 
-  const message = document.getElementById("loginMessage");
-  message.textContent = "Görsel giriş ekranı hazır. Gerçek kullanıcı doğrulaması henüz mevcut ODES giriş altyapısına bağlanmadı.";
-  message.classList.add("show");
-});
+            <div class="input-wrap">
+              <span class="input-symbol">⌑</span>
 
-document.getElementById("registerForm").addEventListener("submit", function(event) {
-  event.preventDefault();
+              <input
+                class="input"
+                id="password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Şifrenizi girin"
+                required
+              >
 
-  const password = document.getElementById("registerPassword").value;
-  const confirm = document.getElementById("confirmPassword").value;
-  const message = document.getElementById("registerMessage");
+              <button
+                class="password-toggle"
+                id="togglePassword"
+                type="button"
+                aria-label="Şifreyi göster"
+              >
+                Göster
+              </button>
+            </div>
 
-  if (password !== confirm) {
-    message.textContent = "Girdiğiniz şifreler birbiriyle eşleşmiyor.";
-    message.classList.add("show");
-    return;
-  }
+            <span class="err" id="passErr"></span>
+          </div>
 
-  message.textContent = "Form kontrolü başarılı. Kayıt işlemi henüz ODES veri sistemine bağlanmadı.";
-  message.classList.add("show");
-});
-</script>
+          <button
+            class="btn btn-primary btn-block auth-submit"
+            type="submit"
+          >
+            <span>Giriş yap</span>
+            <span aria-hidden="true">→</span>
+          </button>
+
+        </form>
+
+        <div class="demo-accts">
+
+          <div class="demo-heading">
+            <b>Hızlı demo girişi</b>
+            <span>Rol seçerek deneyin</span>
+          </div>
+
+          <div class="btns">
+
+            <button
+              class="btn btn-sm"
+              type="button"
+              data-demo="ogrenci@odes.demo"
+            >
+              <span>◎</span> Öğrenci
+            </button>
+
+            <button
+              class="btn btn-sm"
+              type="button"
+              data-demo="ogretmen@odes.demo"
+            >
+              <span>▤</span> Öğretmen
+            </button>
+
+            <button
+              class="btn btn-sm"
+              type="button"
+              data-demo="yonetici@odes.demo"
+            >
+              <span>♙</span> Yönetici
+            </button>
+
+          </div>
+        </div>
+
+        <p class="auth-foot">
+          Henüz hesabınız yok mu?
+          <a href="register.html">
+            Hemen kayıt olun <span>→</span>
+          </a>
+        </p>
+
+        <div class="auth-legal">
+          Güvenli ve düzenli okul iletişimi için ODES.
+        </div>
+
+      </div>
+
+    </main>
+
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script src="login.js"></script>
+
 </body>
 </html>
