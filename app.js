@@ -147,7 +147,7 @@
 
     plus: '<path d="M12 5v14M5 12h14"/>',
 
-    plus-circle: '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
+    'plus-circle': '<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',
 
     history: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/>',
 
@@ -157,19 +157,19 @@
 
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
 
-    check-circle: '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
+    'check-circle': '<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
 
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
 
     shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
 
-    shield-check: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m8.5 12 2.3 2.3 4.7-4.8"/>',
+    'shield-check': '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="m8.5 12 2.3 2.3 4.7-4.8"/>',
 
     send: '<path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
 
     clipboard: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 12h6M9 16h4"/>',
 
-    clipboard-list: '<rect x="6" y="4" width="15" height="17" rx="2"/><path d="M9 4h6v3H9zM10 12h7M10 16h7M3 8v10"/>',
+    'clipboard-list': '<rect x="6" y="4" width="15" height="17" rx="2"/><path d="M9 4h6v3H9zM10 12h7M10 16h7M3 8v10"/>',
 
     search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
 
@@ -187,13 +187,21 @@
 
     alert: '<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18h.01"/>',
 
+    'alert-circle': '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5h.01"/>',
+
     info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>',
 
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 
     list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
 
-    inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>'
+    inbox: '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 3h6l1-3h5"/>',
+
+    'map-pin': '<path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/>',
+
+    tag: '<path d="M20 13 13 20 3 10V3h7z"/><circle cx="7.5" cy="7.5" r="1"/>',
+
+    'arrow-right': '<path d="M5 12h14M13 6l6 6-6 6"/>'
   };
 
   const icon = (name, size) =>
@@ -225,6 +233,7 @@
       '<span>' + esc(msg) + '</span>';
 
     wrap.appendChild(t);
+
     setTimeout(() => {
       t.remove();
     }, 3800);
@@ -311,14 +320,18 @@
       const b = document.createElement('button');
 
       b.type = 'button';
-      b.className = 'btn ' +
+
+      // Hem kind hem className kullanımını destekle.
+      b.className = 'btn ' + (
+        a.className ||
         (
           a.kind === 'primary'
             ? 'btn-primary'
             : a.kind === 'danger'
               ? 'btn-danger'
               : 'btn-ghost'
-        );
+        )
+      );
 
       b.textContent = a.label;
 
@@ -407,14 +420,13 @@
         icon: 'clipboard-list'
       },
       {
-        label: 'Bildirimlerim',
+        label: 'Gelen kutusu',
         page: 'student',
         hash: 'inbox',
         icon: 'bell'
       }
     ],
 
-    /* Öğretmen menüsü, teacher.js yenilenene kadar korunuyor. */
     teacher: [
       {
         label: 'Genel bakış',
@@ -423,45 +435,19 @@
         icon: 'home'
       },
       {
-        label: 'Sınıflarım',
+        label: 'Güvenlik bildirimleri',
         page: 'teacher',
-        hash: 'classes',
-        icon: 'users'
+        hash: 'reports',
+        icon: 'shield'
       },
       {
-        label: 'Yoklama',
-        page: 'teacher',
-        hash: 'attendance',
-        icon: 'clipboard'
-      },
-      {
-        label: 'Ödevler',
-        page: 'teacher',
-        hash: 'assignments',
-        icon: 'book'
-      },
-      {
-        label: 'Gelen bildirimler',
+        label: 'Gelen kutusu',
         page: 'teacher',
         hash: 'inbox',
         icon: 'inbox'
-      },
-      {
-        group: 'Bildirim yönetimi'
-      },
-      {
-        label: 'Bildirim oluştur',
-        page: 'notification-create',
-        icon: 'plus'
-      },
-      {
-        label: 'Geçmiş ve durum',
-        page: 'notification-history',
-        icon: 'history'
       }
     ],
 
-    /* Yönetici menüsü, admin.js yenilenene kadar korunuyor. */
     admin: [
       {
         label: 'Genel bakış',
@@ -809,16 +795,32 @@
 
     function show() {
       const id = (location.hash || '').slice(1);
-      const key = defs[id] ? id : def;
+      const key = typeof defs[id] === 'function' || defs[id]
+        ? id
+        : def;
+
+      const section = defs[key];
+      const isFunction = typeof section === 'function';
+
+      const title = isFunction
+        ? ({
+            overview: 'Genel Bakış',
+            reports: 'Güvenlik Bildirimleri',
+            inbox: 'Gelen Kutusu',
+            createReport: 'Sorun Bildir'
+          }[key] || key)
+        : section.title;
+
+      const sub = isFunction ? '' : section.sub;
 
       root.innerHTML =
         '<div class="page">' +
 
           '<div class="page-head">' +
             '<div>' +
-              '<h1>' + esc(defs[key].title) + '</h1>' +
-              (defs[key].sub
-                ? '<p class="muted">' + esc(defs[key].sub) + '</p>'
+              '<h1>' + esc(title) + '</h1>' +
+              (sub
+                ? '<p class="muted">' + esc(sub) + '</p>'
                 : '') +
             '</div>' +
             '<div class="page-actions" id="pageActions"></div>' +
@@ -830,7 +832,13 @@
 
       const body = $('.page-body', root);
 
-      defs[key].render(body, show);
+      // Hem doğrudan fonksiyonları hem eski nesne yapısını destekle.
+      if (isFunction) {
+        section(body, show);
+      } else if (section && typeof section.render === 'function') {
+        section.render(body, show);
+      }
+
       updateNav();
 
       if (!first) window.scrollTo(0, 0);
@@ -845,7 +853,18 @@
 
   /* ---------- Paylaşılan bileşenler ---------- */
 
-  function statCard(o) {
+  function statCard(o, value, ic, tone) {
+    // Eski statCard({label,value,icon,tone}) kullanımı
+    // ve yeni statCard(label,value,icon,tone) kullanımı.
+    if (typeof o !== 'object' || o === null) {
+      o = {
+        label: o,
+        value: value,
+        icon: ic,
+        tone: tone
+      };
+    }
+
     const tag = o.href ? 'a' : 'div';
 
     return '<' + tag +
