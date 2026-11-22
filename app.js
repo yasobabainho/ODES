@@ -321,7 +321,6 @@
 
       b.type = 'button';
 
-      // Hem kind hem className kullanımını destekle.
       b.className = 'btn ' + (
         a.className ||
         (
@@ -456,6 +455,18 @@
         icon: 'home'
       },
       {
+        label: 'Güvenlik bildirimleri',
+        page: 'admin',
+        hash: 'reports',
+        icon: 'shield'
+      },
+      {
+        label: 'Risk haritası',
+        page: 'admin',
+        hash: 'riskMap',
+        icon: 'map-pin'
+      },
+      {
         label: 'Kullanıcılar',
         page: 'admin',
         hash: 'users',
@@ -465,7 +476,7 @@
         label: 'Onay bekleyenler',
         page: 'admin',
         hash: 'pending',
-        icon: 'shield'
+        icon: 'clock'
       },
       {
         label: 'Etkinlik günlüğü',
@@ -474,31 +485,10 @@
         icon: 'list'
       },
       {
-        label: 'Gelen bildirimler',
+        label: 'Gelen kutusu',
         page: 'admin',
         hash: 'inbox',
         icon: 'inbox'
-      },
-      {
-        group: 'Bildirim yönetimi'
-      },
-      {
-        label: 'Bildirim oluştur',
-        page: 'notification-create',
-        icon: 'plus'
-      },
-      {
-        label: 'Geçmiş ve durum',
-        page: 'notification-history',
-        icon: 'history'
-      },
-      {
-        group: 'Raporlar'
-      },
-      {
-        label: 'İstatistikler',
-        page: 'admin-stats',
-        icon: 'chart'
       }
     ]
   };
@@ -694,7 +684,7 @@
       const ok = await confirmDialog({
         title: 'Demo verilerini sıfırla',
         message:
-          'Bu tarayıcıdaki tüm demo verileri (kayıtlar, bildirimler, yoklamalar) başlangıç haline döner. Devam edilsin mi?',
+          'Bu tarayıcıdaki tüm demo verileri başlangıç haline döner. Devam edilsin mi?',
         confirmLabel: 'Sıfırla',
         danger: true
       });
@@ -802,13 +792,19 @@
       const section = defs[key];
       const isFunction = typeof section === 'function';
 
+      const titles = {
+        overview: 'Genel Bakış',
+        reports: 'Güvenlik Bildirimleri',
+        riskMap: 'Risk Haritası',
+        users: 'Kullanıcı Yönetimi',
+        pending: 'Onay Bekleyenler',
+        log: 'Etkinlik Günlüğü',
+        inbox: 'Gelen Kutusu',
+        createReport: 'Sorun Bildir'
+      };
+
       const title = isFunction
-        ? ({
-            overview: 'Genel Bakış',
-            reports: 'Güvenlik Bildirimleri',
-            inbox: 'Gelen Kutusu',
-            createReport: 'Sorun Bildir'
-          }[key] || key)
+        ? (titles[key] || key)
         : section.title;
 
       const sub = isFunction ? '' : section.sub;
@@ -832,7 +828,6 @@
 
       const body = $('.page-body', root);
 
-      // Hem doğrudan fonksiyonları hem eski nesne yapısını destekle.
       if (isFunction) {
         section(body, show);
       } else if (section && typeof section.render === 'function') {
@@ -854,8 +849,6 @@
   /* ---------- Paylaşılan bileşenler ---------- */
 
   function statCard(o, value, ic, tone) {
-    // Eski statCard({label,value,icon,tone}) kullanımı
-    // ve yeni statCard(label,value,icon,tone) kullanımı.
     if (typeof o !== 'object' || o === null) {
       o = {
         label: o,
