@@ -5,52 +5,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yönetici paneli · ODES</title>
-  <link rel="stylesheet" href="assets/css/styles.css">
-  <style>
-    #odes-error {
-      display: none;
-      margin: 20px;
-      padding: 16px;
-      background: #fff0f0;
-      color: #8b1e1e;
-      border: 1px solid #e5aaaa;
-      border-radius: 10px;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      font: 14px monospace;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body data-page="admin" data-roles="admin" data-title="Yönetici paneli">
   <noscript>Bu demo için JavaScript gereklidir.</noscript>
 
-  <pre id="odes-error"></pre>
-
-  <script>
-    (function () {
-      const box = document.getElementById('odes-error');
-
-      function showError(message) {
-        box.style.display = 'block';
-        box.textContent += message + '\n\n';
-      }
-
-      window.addEventListener('error', function (event) {
-        showError(
-          'HATA: ' + (event.message || 'Dosya yüklenemedi') +
-          '\nDosya: ' + (event.filename || 'Bilinmiyor') +
-          '\nSatır: ' + (event.lineno || 'Bilinmiyor')
-        );
-      }, true);
-
-      window.addEventListener('unhandledrejection', function (event) {
-        showError('İŞLENMEYEN HATA: ' + String(event.reason));
-      });
-    })();
-  </script>
-
-  <script src="assets/js/data.js"></script>
-  <script src="assets/js/app.js"></script>
-  <script src="assets/js/pages/admin.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+  <script src="admin.js"></script>
 </body>
 </html>
