@@ -1,14 +1,31 @@
-/* ODES demo prototipi - demo veri deposu (localStorage).
-   UYARI: Bu bir prototiptir. Gerçek kimlik doğrulama, şifre saklama veya sunucu tarafı
-   yetkilendirme YOKTUR. Tüm veri bu tarayıcıda tutulur. */
+
+/*
+ * ODES — VERİ YÖNETİM SİSTEMİ
+ *
+ * Bu sürüm:
+ * - Demo ve gerçek kullanıcı verilerini ayırır.
+ * - Eski kayıtları otomatik olarak korur.
+ * - Öğrenci, öğretmen ve yönetici erişimlerini sınırlar.
+ * - Anonim bildirimlerin kimliğini öğrenci ve öğretmenlerden gizler.
+ *
+ * ÖNEMLİ:
+ * Bu sistem localStorage üzerinde çalışan bir prototiptir.
+ * Gerçek güvenlik için sunucu taraflı kimlik doğrulama gerekir.
+ */
+
 (function (global) {
   'use strict';
 
   const DB_KEY = 'odes.demo.v1';
   const SESSION_KEY = 'odes.session.v1';
   const VERSION = 1;
-  const DAY = 86400000;
-  const HOUR = 3600000;
+
+  const DEMO_IDS = new Set([
+    'a1',
+    't1', 't2', 't3', 't4',
+    's1', 's2', 's3', 's4', 's5',
+    's6', 's7', 's8', 's9', 's10', 's11'
+  ]);
 
   const TYPES = {
     duyuru: 'Duyuru',
@@ -82,75 +99,58 @@
   ];
 
   const DAYS = [
-    'Pazar', 'Pazartesi', 'Salı', 'Çarşamba',
-    'Perşembe', 'Cuma', 'Cumartesi'
+    'Pazar',
+    'Pazartesi',
+    'Salı',
+    'Çarşamba',
+    'Perşembe',
+    'Cuma',
+    'Cumartesi'
   ];
+
+  const DAY = 86400000;
+  const HOUR = 3600000;
 
   const pad = n => String(n).padStart(2, '0');
 
   const dateKey = d => {
     d = d ? new Date(d) : new Date();
+
     return d.getFullYear() + '-' +
       pad(d.getMonth() + 1) + '-' +
       pad(d.getDate());
   };
 
-  const atDay = (offset, h, m) => {
-    const d = new Date();
-    d.setDate(d.getDate() + offset);
-    d.setHours(h == null ? 9 : h, m || 0, 0, 0);
-    return d.toISOString();
-  };
+  const uid = prefix =>
+    prefix +
+    Date.now().toString(36) +
+    Math.random().toString(36).slice(2, 8);
 
-  const uid = p =>
-    p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-
-  /* ---------- Alıcı çözümleme ---------- */
-
-  function resolve(users, aud, senderId) {
-    const sender = users.find(u => u.id === senderId);
-    const act = users.filter(u =>
-      u.status === 'active' && u.id !== senderId
-    );
-
-    switch (aud && aud.kind) {
-      case 'all':
-        return act.map(u => u.id);
-
-      case 'students':
-        return act.filter(u => u.role === 'student').map(u => u.id);
-
-      case 'teachers':
-        return act.filter(u => u.role === 'teacher').map(u => u.id);
-
-      case 'class':
-        return act
-          .filter(u => u.role === 'student' && u.class === aud.value)
-          .map(u => u.id);
-
-      case 'myclasses':
-        return act
-          .filter(u =>
-            u.role === 'student' &&
-            sender &&
-            (sender.classes || []).includes(u.class)
-          )
-          .map(u => u.id);
-
-      case 'user':
-        return act.filter(u => u.id === aud.value).map(u => u.id);
-
-      case 'users':
-        return act
-          .filter(u => (aud.value || []).includes(u.id))
-          .map(u => u.id);
-
-      default:
-        return [];
-    }
+  function safeArray(value) {
+    return Array.isArray(value) ? value : [];
   }
 
-  /* ---------- Tohum veri ---------- */
+  function normalizeEmail(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function getUserRealm(user) {
+    if (!user) return 'demo';
+
+    if (user.realm === 'real' || user.realm === 'demo') {
+      return user.realm;
+    }
+
+    return DEMO_IDS.has(user.id) ? 'demo' : 'real';
+  }
+
+  function sameRealm(a, b) {
+    return getUserRealm(a) === getUserRealm(b);
+  }
+
+  /* =====================================
+     DEMO VERİLERİ
+  ===================================== */
 
   function seed() {
     const users = [
@@ -159,7 +159,8 @@
         name: 'Mehmet Kaya',
         email: 'yonetici@odes.demo',
         role: 'admin',
-        status: 'active'
+        status: 'active',
+        realm: 'demo'
       },
       {
         id: 't1',
@@ -168,7 +169,8 @@
         role: 'teacher',
         status: 'active',
         branch: 'Matematik',
-        classes: ['10-A', '11-A', '11-B']
+        classes: ['10-A', '11-A', '11-B'],
+        realm: 'demo'
       },
       {
         id: 't2',
@@ -177,16 +179,8 @@
         role: 'teacher',
         status: 'active',
         branch: 'Fizik',
-        classes: ['10-A', '11-A']
-      },
-      {
-        id: 't4',
-        name: 'Cem Yıldız',
-        email: 'cem.yildiz@odes.demo',
-        role: 'teacher',
-        status: 'active',
-        branch: 'Edebiyat',
-        classes: ['10-A', '11-A', '11-B']
+        classes: ['10-A', '11-A'],
+        realm: 'demo'
       },
       {
         id: 't3',
@@ -195,7 +189,18 @@
         role: 'teacher',
         status: 'pending',
         branch: 'Kimya',
-        classes: []
+        classes: [],
+        realm: 'demo'
+      },
+      {
+        id: 't4',
+        name: 'Cem Yıldız',
+        email: 'cem.yildiz@odes.demo',
+        role: 'teacher',
+        status: 'active',
+        branch: 'Edebiyat',
+        classes: ['10-A', '11-A', '11-B'],
+        realm: 'demo'
       },
       {
         id: 's1',
@@ -203,7 +208,8 @@
         email: 'ogrenci@odes.demo',
         role: 'student',
         status: 'active',
-        class: '11-A'
+        class: '11-A',
+        realm: 'demo'
       },
       {
         id: 's2',
@@ -211,7 +217,8 @@
         email: 'can.ozturk@odes.demo',
         role: 'student',
         status: 'active',
-        class: '11-A'
+        class: '11-A',
+        realm: 'demo'
       },
       {
         id: 's3',
@@ -219,15 +226,8 @@
         email: 'deniz.acar@odes.demo',
         role: 'student',
         status: 'active',
-        class: '11-A'
-      },
-      {
-        id: 's10',
-        name: 'Mina Erdem',
-        email: 'mina.erdem@odes.demo',
-        role: 'student',
-        status: 'active',
-        class: '11-A'
+        class: '11-A',
+        realm: 'demo'
       },
       {
         id: 's4',
@@ -235,7 +235,8 @@
         email: 'selin.celik@odes.demo',
         role: 'student',
         status: 'active',
-        class: '11-B'
+        class: '11-B',
+        realm: 'demo'
       },
       {
         id: 's5',
@@ -243,15 +244,8 @@
         email: 'emre.koc@odes.demo',
         role: 'student',
         status: 'active',
-        class: '11-B'
-      },
-      {
-        id: 's9',
-        name: 'Yusuf Tan',
-        email: 'yusuf.tan@odes.demo',
-        role: 'student',
-        status: 'active',
-        class: '11-B'
+        class: '11-B',
+        realm: 'demo'
       },
       {
         id: 's6',
@@ -259,7 +253,8 @@
         email: 'naz.aydin@odes.demo',
         role: 'student',
         status: 'active',
-        class: '10-A'
+        class: '10-A',
+        realm: 'demo'
       },
       {
         id: 's7',
@@ -267,7 +262,8 @@
         email: 'kerem.polat@odes.demo',
         role: 'student',
         status: 'active',
-        class: '10-A'
+        class: '10-A',
+        realm: 'demo'
       },
       {
         id: 's8',
@@ -275,7 +271,26 @@
         email: 'ada.gunes@odes.demo',
         role: 'student',
         status: 'active',
-        class: '10-A'
+        class: '10-A',
+        realm: 'demo'
+      },
+      {
+        id: 's9',
+        name: 'Yusuf Tan',
+        email: 'yusuf.tan@odes.demo',
+        role: 'student',
+        status: 'active',
+        class: '11-B',
+        realm: 'demo'
+      },
+      {
+        id: 's10',
+        name: 'Mina Erdem',
+        email: 'mina.erdem@odes.demo',
+        role: 'student',
+        status: 'active',
+        class: '11-A',
+        realm: 'demo'
       },
       {
         id: 's11',
@@ -283,421 +298,152 @@
         email: 'orhan.bilgin@odes.demo',
         role: 'student',
         status: 'inactive',
-        class: '11-B'
-      }
-    ];
-
-    const courses = [
-      {
-        id: 'c1',
-        name: 'Matematik',
-        teacherId: 't1',
-        classes: ['10-A', '11-A', '11-B']
-      },
-      {
-        id: 'c2',
-        name: 'Fizik',
-        teacherId: 't2',
-        classes: ['10-A', '11-A']
-      },
-      {
-        id: 'c3',
-        name: 'Türk Dili ve Edebiyatı',
-        teacherId: 't4',
-        classes: ['10-A', '11-A', '11-B']
-      }
-    ];
-
-    const grades = {};
-
-    users.filter(u => u.role === 'student').forEach((u, a) => {
-      grades[u.id] = {};
-
-      courses.forEach((c, b) => {
-        if (!c.classes.includes(u.class)) return;
-
-        const g = k =>
-          55 + (
-            (a + 1) * 37 +
-            (b + 1) * 23 +
-            k * 11 +
-            (a + 1) * (b + 1) * (k + 2)
-          ) % 41;
-
-        grades[u.id][c.id] = {
-          vize: g(1),
-          quiz: g(2),
-          proje: g(3)
-        };
-      });
-    });
-
-    const assignments = [
-      {
-        id: 'as1',
-        title: 'Türev problem seti',
-        courseId: 'c1',
-        class: '11-A',
-        due: atDay(2, 23, 59),
-        createdBy: 't1',
-        done: {}
-      },
-      {
-        id: 'as2',
-        title: 'Fizik laboratuvar raporu',
-        courseId: 'c2',
-        class: '11-A',
-        due: atDay(4, 23, 59),
-        createdBy: 't2',
-        done: { s2: true }
-      },
-      {
-        id: 'as3',
-        title: 'Kitap analizi (2 sayfa)',
-        courseId: 'c3',
-        class: '11-A',
-        due: atDay(7, 23, 59),
-        createdBy: 't4',
-        done: {}
-      },
-      {
-        id: 'as4',
-        title: 'Limit çalışma kağıdı',
-        courseId: 'c1',
         class: '11-B',
-        due: atDay(3, 23, 59),
-        createdBy: 't1',
-        done: { s4: true }
-      },
-      {
-        id: 'as5',
-        title: 'Newton yasaları sunumu',
-        courseId: 'c2',
-        class: '10-A',
-        due: atDay(5, 23, 59),
-        createdBy: 't2',
-        done: {}
-      },
-      {
-        id: 'as6',
-        title: 'Şiir çözümleme',
-        courseId: 'c3',
-        class: '10-A',
-        due: atDay(-2, 23, 59),
-        createdBy: 't4',
-        done: { s6: true, s8: true }
-      },
-      {
-        id: 'as7',
-        title: 'İntegral testi',
-        courseId: 'c1',
-        class: '11-A',
-        due: atDay(-3, 23, 59),
-        createdBy: 't1',
-        done: { s1: true, s2: true, s3: true }
-      }
-    ];
-
-    const attendance = {};
-    const absent = {
-      '-1': ['s3', 's7'],
-      '-2': ['s1', 's7'],
-      '-3': ['s5']
-    };
-
-    [-1, -2, -3].forEach(off => {
-      const dk = dateKey(new Date(Date.now() + off * DAY));
-
-      CLASSES.slice(8, 11).forEach(cl => {
-        const rec = {};
-
-        users
-          .filter(u =>
-            u.role === 'student' &&
-            u.class === cl &&
-            u.status === 'active'
-          )
-          .forEach(u => {
-            rec[u.id] = absent[String(off)].includes(u.id)
-              ? 'absent'
-              : 'present';
-          });
-
-        attendance[dk + '|' + cl] = rec;
-      });
-    });
-
-    const notifications = seedNotifications(users);
-
-    const activity = [
-      {
-        at: atDay(-2, 14, 5),
-        text: 'Mehmet Kaya "Kütüphane uzatılmış çalışma saatleri" bildirimini gönderdi.'
-      },
-      {
-        at: atDay(-3, 9, 40),
-        text: 'Ayşe Demir "Proje sunum günleri" bildirimini gönderdi.'
-      },
-      {
-        at: atDay(-4, 16, 20),
-        text: 'Cem Yıldız hesabı onaylandı.'
-      },
-      {
-        at: atDay(-6, 8, 15),
-        text: 'Mehmet Kaya "Okul servis saatleri değişti" acil bildirimini gönderdi.'
-      },
-      {
-        at: atDay(-9, 11, 0),
-        text: 'Orhan Bilgin hesabı pasif duruma alındı.'
+        realm: 'demo'
       }
     ];
 
     return {
       v: VERSION,
       users,
-      courses,
-      grades,
-      assignments,
-      attendance,
-      notifications,
-      activity,
+      courses: [],
+      grades: {},
+      assignments: [],
+      attendance: {},
+      notifications: [],
+      activity: [
+        {
+          at: new Date().toISOString(),
+          text: 'ODES demo sistemi başlatıldı.',
+          realm: 'demo'
+        }
+      ],
       reports: []
     };
   }
 
-  function seedNotifications(users) {
-    const UNREAD = {
-      s1: ['n8', 'n9'],
-      t1: ['n6']
-    };
-
-    const defs = [
-      {
-        id: 'n1',
-        d: -13,
-        h: 10,
-        by: 't1',
-        aud: { kind: 'class', value: '11-A' },
-        type: 'sinav',
-        p: 0.9,
-        title: 'Matematik vize hazırlık oturumu',
-        body: 'Cuma günü 15:30\'da A-204 sınıfında vize hazırlık oturumu yapılacaktır. Türev ve limit konularına çalışarak gelin.'
-      },
-      {
-        id: 'n2',
-        d: -12,
-        h: 9,
-        by: 'a1',
-        aud: { kind: 'students' },
-        type: 'duyuru',
-        p: 0.8,
-        title: 'Dönem sonu takvimi yayınlandı',
-        body: 'Dönem sonu sınav takvimi öğrenci panelinde yayınlanmıştır. Çakışma durumunda rehberlik servisine başvurunuz.'
-      },
-      {
-        id: 'n3',
-        d: -10,
-        h: 13,
-        by: 't2',
-        aud: { kind: 'class', value: '10-A' },
-        type: 'odev',
-        p: 0.85,
-        title: 'Fizik laboratuvar föyü',
-        body: 'Laboratuvar föyünü inceleyip deney öncesi soruları cevaplayarak gelmeniz gerekmektedir.'
-      },
-      {
-        id: 'n4',
-        d: -9,
-        h: 15,
-        by: 'a1',
-        aud: { kind: 'teachers' },
-        type: 'duyuru',
-        p: 0.75,
-        title: 'Öğretmenler kurulu toplantısı',
-        body: 'Öğretmenler kurulu toplantısı perşembe günü 16:00\'da toplantı salonunda yapılacaktır.'
-      },
-      {
-        id: 'n5',
-        d: -7,
-        h: 11,
-        by: 't1',
-        aud: { kind: 'class', value: '11-B' },
-        type: 'odev',
-        p: 0.7,
-        title: 'Ödev teslim hatırlatması',
-        body: 'Limit çalışma kağıdının teslim tarihi yaklaşmaktadır. Lütfen zamanında teslim ediniz.'
-      },
-      {
-        id: 'n6',
-        d: -6,
-        h: 8,
-        by: 'a1',
-        aud: { kind: 'all' },
-        type: 'acil',
-        p: 0.65,
-        title: 'Okul servis saatleri değişti',
-        body: 'Yarından itibaren sabah servisleri 07:45\'te hareket edecektir. Lütfen servis saatlerine dikkat ediniz.'
-      },
-      {
-        id: 'n7',
-        d: -5,
-        h: 12,
-        by: 't2',
-        aud: { kind: 'class', value: '11-A' },
-        type: 'sinav',
-        p: 0.6,
-        title: 'Fizik quiz duyurusu',
-        body: 'Önümüzdeki hafta kuvvet ve hareket konusundan 20 dakikalık quiz yapılacaktır.'
-      },
-      {
-        id: 'n8',
-        d: -3,
-        h: 9,
-        by: 't1',
-        aud: { kind: 'class', value: '11-A' },
-        type: 'duyuru',
-        p: 0.5,
-        title: 'Proje sunum günleri',
-        body: 'Dönem projesi sunumları gelecek hafta salı ve çarşamba günleri yapılacaktır. Sunum sırası ilan edilecektir.'
-      },
-      {
-        id: 'n9',
-        d: -2,
-        h: 14,
-        by: 'a1',
-        aud: { kind: 'students' },
-        type: 'duyuru',
-        p: 0.4,
-        title: 'Kütüphane uzatılmış çalışma saatleri',
-        body: 'Sınav haftasında kütüphane 19:00\'a kadar açık olacaktır.'
-      },
-      {
-        id: 'n10',
-        d: -1,
-        h: 16,
-        by: 't2',
-        aud: { kind: 'class', value: '10-A' },
-        type: 'acil',
-        p: 0.3,
-        title: 'Yarınki ders odası değişikliği',
-        body: 'Yarınki Fizik dersi B-101 yerine laboratuvarda yapılacaktır.'
-      },
-      {
-        id: 'n11',
-        d: 1,
-        h: 8,
-        by: 't1',
-        aud: { kind: 'class', value: '11-A' },
-        type: 'sinav',
-        status: 'scheduled',
-        title: 'Matematik quiz hatırlatması',
-        body: 'Bugün 3. derste kısa quiz yapılacaktır. Hesap makinesi getirmeyiniz.'
-      },
-      {
-        id: 'n12',
-        d: 3,
-        h: 10,
-        by: 'a1',
-        aud: { kind: 'all' },
-        type: 'duyuru',
-        status: 'scheduled',
-        title: 'Veli-öğretmen görüşmesi',
-        body: 'Veli-öğretmen görüşmeleri bu cuma 14:00-18:00 arasında yapılacaktır.'
-      },
-      {
-        id: 'n13',
-        d: -1,
-        h: 17,
-        by: 't1',
-        aud: { kind: 'myclasses' },
-        type: 'odev',
-        status: 'draft',
-        title: 'Dönem projesi konuları',
-        body: 'Dönem projesi konu listesi ve değerlendirme ölçütleri ektedir.'
-      },
-      {
-        id: 'n14',
-        d: -1,
-        h: 18,
-        by: 'a1',
-        aud: { kind: 'students' },
-        type: 'duyuru',
-        status: 'draft',
-        title: 'Anket: okul etkinlikleri',
-        body: 'Okul etkinlikleri hakkındaki görüşlerinizi paylaşır mısınız?'
-      },
-      {
-        id: 'n15',
-        d: -8,
-        h: 10,
-        by: 'a1',
-        aud: { kind: 'teachers' },
-        type: 'duyuru',
-        status: 'cancelled',
-        title: 'Yanlış tarihli toplantı duyurusu',
-        body: 'Bu duyuru yanlış tarihle hazırlandığı için iptal edilmiştir.'
-      }
-    ];
-
-    return defs.map((def, idx) => {
-      const status = def.status || 'sent';
-
-      const created = atDay(
-        def.d - (status === 'scheduled' ? 1 : 0),
-        def.h - 1 > 0 ? def.h - 1 : def.h
-      );
-
-      const n = {
-        id: def.id,
-        title: def.title,
-        body: def.body,
-        type: def.type,
-        audience: def.aud,
-        senderId: def.by,
-        createdAt: created,
-        scheduledAt: null,
-        sentAt: null,
-        status,
-        recipients: [],
-        reads: {}
-      };
-
-      if (status === 'scheduled') {
-        n.scheduledAt = atDay(def.d, def.h);
-      }
-
-      if (status === 'sent') {
-        n.sentAt = atDay(def.d, def.h);
-        n.recipients = resolve(users, def.aud, def.by);
-
-        const sentMs = new Date(n.sentAt).getTime();
-
-        n.recipients.forEach((rid, i) => {
-          const forced = (UNREAD[rid] || []).includes(def.id);
-          const roll = ((i * 7 + idx * 13) % 10) / 10;
-
-          if (!forced && roll < def.p) {
-            const t = Math.min(
-              Date.now() - 60000,
-              sentMs + (((i * 5 + idx * 3) % 36) + 1) * HOUR
-            );
-
-            n.reads[rid] = new Date(t).toISOString();
-          }
-        });
-      }
-
-      if (status === 'cancelled') {
-        n.cancelledAt = atDay(def.d + 1, 9);
-      }
-
-      return n;
-    });
-  }
-
-  /* ---------- Depo ---------- */
+  /* =====================================
+     DEPO VE ESKİ VERİLERİ KORUMA
+  ===================================== */
 
   let db = null;
+
+  function migrateDatabase(data) {
+    let changed = false;
+
+    data.users = safeArray(data.users);
+    data.reports = safeArray(data.reports);
+    data.notifications = safeArray(data.notifications);
+    data.activity = safeArray(data.activity);
+    data.courses = safeArray(data.courses);
+    data.assignments = safeArray(data.assignments);
+
+    if (!data.grades || typeof data.grades !== 'object') {
+      data.grades = {};
+      changed = true;
+    }
+
+    if (!data.attendance || typeof data.attendance !== 'object') {
+      data.attendance = {};
+      changed = true;
+    }
+
+    data.users.forEach(user => {
+      if (!user.realm) {
+        user.realm = DEMO_IDS.has(user.id) ? 'demo' : 'real';
+        changed = true;
+      }
+
+      if (!Array.isArray(user.classes)) {
+        user.classes = [];
+        changed = true;
+      }
+    });
+
+    const userById = id =>
+      data.users.find(user => user.id === id) || null;
+
+    data.reports.forEach(report => {
+      if (!report.realm) {
+        const owner = userById(
+          report.reporterId || report.studentId
+        );
+
+        report.realm = owner
+          ? getUserRealm(owner)
+          : 'demo';
+
+        changed = true;
+      }
+
+      if (!Array.isArray(report.history)) {
+        report.history = [];
+        changed = true;
+      }
+
+      if (!report.status || !REPORT_STATUSES[report.status]) {
+        report.status = 'new';
+        changed = true;
+      }
+    });
+
+    data.notifications.forEach(notification => {
+      if (!notification.realm) {
+        const sender = userById(notification.senderId);
+
+        if (sender) {
+          notification.realm = getUserRealm(sender);
+        } else {
+          notification.realm = 'demo';
+        }
+
+        changed = true;
+      }
+
+      notification.recipients = safeArray(
+        notification.recipients
+      );
+
+      notification.reads =
+        notification.reads &&
+        typeof notification.reads === 'object'
+          ? notification.reads
+          : {};
+
+      const allowedIds = new Set(
+        data.users
+          .filter(user =>
+            getUserRealm(user) === notification.realm
+          )
+          .map(user => user.id)
+      );
+
+      const filteredRecipients = notification.recipients
+        .filter(id => allowedIds.has(id));
+
+      if (
+        filteredRecipients.length !==
+        notification.recipients.length
+      ) {
+        notification.recipients = filteredRecipients;
+        changed = true;
+      }
+    });
+
+    data.activity.forEach(item => {
+      if (!item.realm) {
+        item.realm = 'demo';
+        changed = true;
+      }
+    });
+
+    if (data.v !== VERSION) {
+      data.v = VERSION;
+      changed = true;
+    }
+
+    return changed;
+  }
 
   function load() {
     if (db) return db;
@@ -708,79 +454,153 @@
       if (raw) {
         const parsed = JSON.parse(raw);
 
-        if (parsed && parsed.v === VERSION) {
+        if (parsed && typeof parsed === 'object') {
           db = parsed;
 
-          let changed = false;
-
-          if (!Array.isArray(db.reports)) {
-            db.reports = [];
-            changed = true;
-          }
-
-          if (!Array.isArray(db.activity)) {
-            db.activity = [];
-            changed = true;
-          }
-
-          if (!Array.isArray(db.notifications)) {
-            db.notifications = [];
-            changed = true;
-          }
-
-          if (!Array.isArray(db.users)) {
-            db.users = [];
-            changed = true;
-          }
+          const changed = migrateDatabase(db);
 
           if (changed) save();
 
           return db;
         }
       }
-    } catch (e) {
-      /* localStorage kapalı olabilir; bellekte devam edilir */
+    } catch (error) {
+      console.warn('ODES veri deposu okunamadı:', error);
     }
 
     db = seed();
     save();
+
     return db;
   }
 
   function save() {
+    if (!db) return;
+
     try {
       localStorage.setItem(DB_KEY, JSON.stringify(db));
-    } catch (e) {
-      /* yoksay */
+    } catch (error) {
+      console.error('ODES verileri kaydedilemedi:', error);
     }
   }
 
-  function reset() {
-    db = seed();
-    save();
+  function getSessionId() {
+    try {
+      return sessionStorage.getItem(SESSION_KEY);
+    } catch (error) {
+      return null;
+    }
   }
 
+  function currentRealm() {
+    const id = getSessionId();
+
+    if (!id) return 'demo';
+
+    const user = load().users.find(item => item.id === id);
+
+    return user ? getUserRealm(user) : 'demo';
+  }
+
+  function scopedDatabase(realm) {
+    const data = load();
+
+    return Object.assign({}, data, {
+      users: data.users.filter(user =>
+        getUserRealm(user) === realm
+      ),
+
+      reports: data.reports.filter(report =>
+        report.realm === realm
+      ),
+
+      notifications: data.notifications.filter(notification =>
+        notification.realm === realm
+      ),
+
+      activity: data.activity.filter(item =>
+        item.realm === realm
+      ),
+
+      courses: data.courses.filter(course => {
+        const teacher = data.users.find(
+          user => user.id === course.teacherId
+        );
+
+        return teacher && getUserRealm(teacher) === realm;
+      })
+    });
+  }
+
+  /* =====================================
+     KULLANICI VE OTURUM
+  ===================================== */
+
   const store = {
-    load,
-    save,
-    reset,
-    db: () => load(),
     uid,
     dateKey,
-    resolve,
+    DAY,
+    HOUR,
+
+    load() {
+      return scopedDatabase(currentRealm());
+    },
+
+    db() {
+      return scopedDatabase(currentRealm());
+    },
+
+    save,
+
+    reset() {
+      const data = load();
+
+      // Gerçek kullanıcı alanı hiçbir zaman sıfırlanmaz.
+      const realUsers = data.users.filter(
+        user => getUserRealm(user) === 'real'
+      );
+
+      const realReports = data.reports.filter(
+        report => report.realm === 'real'
+      );
+
+      const realNotifications = data.notifications.filter(
+        notification => notification.realm === 'real'
+      );
+
+      const realActivity = data.activity.filter(
+        item => item.realm === 'real'
+      );
+
+      const fresh = seed();
+
+      fresh.users = fresh.users.concat(realUsers);
+      fresh.reports = realReports;
+      fresh.notifications = fresh.notifications.concat(
+        realNotifications
+      );
+      fresh.activity = fresh.activity.concat(realActivity);
+
+      db = fresh;
+      save();
+
+      return true;
+    },
 
     user(id) {
-      return load().users.find(u => u.id === id) || null;
+      const user = load().users.find(item => item.id === id);
+
+      if (!user) return null;
+
+      if (getUserRealm(user) !== currentRealm()) {
+        return null;
+      }
+
+      return user;
     },
 
     currentUser() {
-      let id = null;
-
-      try {
-        id = sessionStorage.getItem(SESSION_KEY);
-      } catch (e) {
-        /* yoksay */
-      }
+      const id = getSessionId();
 
       return id ? this.user(id) : null;
     },
@@ -788,54 +608,61 @@
     setSession(id) {
       try {
         sessionStorage.setItem(SESSION_KEY, id);
-      } catch (e) {
-        /* yoksay */
+      } catch (error) {
+        console.warn('Oturum kaydedilemedi.');
       }
     },
 
     logout() {
       try {
         sessionStorage.removeItem(SESSION_KEY);
-      } catch (e) {
-        /* yoksay */
+      } catch (error) {
+        // Oturum zaten kapalı olabilir.
       }
     },
 
-    /* Demo girişi: yalnızca e-posta eşleşmesi. Şifre doğrulanmaz ve saklanmaz. */
     login(email) {
-      const u = load().users.find(
-        x => x.email.toLowerCase() === String(email).trim().toLowerCase()
+      const normalized = normalizeEmail(email);
+
+      const user = load().users.find(item =>
+        normalizeEmail(item.email) === normalized
       );
 
-      if (!u) {
+      if (!user) {
         return {
           ok: false,
-          error: 'Bu e-posta ile kayıtlı bir demo hesabı bulunamadı.'
+          error: 'Bu e-posta ile kayıtlı hesap bulunamadı.'
         };
       }
 
-      if (u.status === 'pending') {
+      if (user.status === 'pending') {
         return {
           ok: false,
           error: 'Hesabınız yönetici onayı bekliyor.'
         };
       }
 
-      if (u.status !== 'active') {
+      if (user.status !== 'active') {
         return {
           ok: false,
-          error: 'Hesabınız pasif durumda. Lütfen yöneticiyle iletişime geçin.'
+          error: 'Hesabınız pasif durumda.'
         };
       }
 
-      this.setSession(u.id);
+      this.setSession(user.id);
 
-      return { ok: true, user: u };
+      return {
+        ok: true,
+        user
+      };
     },
 
     register(info) {
-      const d = load();
-      const email = String(info.email || '').trim().toLowerCase();
+      info = info || {};
+
+      const data = load();
+
+      const email = normalizeEmail(info.email);
       const name = String(info.name || '').trim();
       const role = String(info.role || '');
 
@@ -853,86 +680,137 @@
         };
       }
 
-      if (d.users.some(u => u.email.toLowerCase() === email)) {
+      if (data.users.some(user =>
+        normalizeEmail(user.email) === email
+      )) {
         return {
           ok: false,
           error: 'Bu e-posta adresi zaten kayıtlı.'
         };
       }
 
-      const u = {
+      const user = {
         id: uid('u'),
         name,
         email,
         role,
-        status: role === 'teacher' ? 'pending' : 'active'
+        status: role === 'teacher' ? 'pending' : 'active',
+        realm: 'real',
+        createdAt: new Date().toISOString()
       };
 
       if (role === 'student') {
-        if (!info.class) {
+        if (!CLASSES.includes(info.class)) {
           return {
             ok: false,
-            error: 'Sınıf ve şube seçmelisin.'
+            error: 'Geçerli bir sınıf seçmelisin.'
           };
         }
 
-        u.class = info.class;
+        user.class = info.class;
+        user.classes = [];
       }
 
       if (role === 'teacher') {
-        u.branch = String(info.branch || '').trim();
-        u.classes = [];
+        user.branch = String(info.branch || '').trim();
+        user.classes = [];
       }
 
-      d.users.push(u);
+      data.users.push(user);
 
       this.log(
-        u.name + ' kayıt oldu' +
-        (u.status === 'pending' ? ' (onay bekliyor).' : '.')
+        user.name +
+        ' kayıt oldu' +
+        (user.status === 'pending'
+          ? ' (onay bekliyor).'
+          : '.'),
+        'real'
       );
 
       save();
 
-      return { ok: true, user: u };
+      return {
+        ok: true,
+        user
+      };
     },
 
-    log(text) {
-      load().activity.unshift({
+    log(message, realm) {
+      const data = load();
+
+      data.activity.unshift({
         at: new Date().toISOString(),
-        text
+        text: String(message || ''),
+        realm: realm || currentRealm()
       });
 
-      load().activity.length = Math.min(load().activity.length, 60);
+      data.activity = data.activity.slice(0, 150);
+
       save();
     },
 
-    /* ---------- Kullanıcı yönetimi ---------- */
+    /* =====================================
+       KULLANICI YÖNETİMİ
+    ===================================== */
 
     setUserStatus(id, status) {
-      const u = this.user(id);
-      if (!u) return;
+      const actor = this.currentUser();
+      const user = this.user(id);
 
-      u.status = status;
+      if (
+        !actor ||
+        actor.role !== 'admin' ||
+        !user ||
+        !['active', 'inactive', 'pending'].includes(status)
+      ) {
+        return {
+          ok: false,
+          error: 'Bu işlem için yetkili yönetici hesabı gerekli.'
+        };
+      }
+
+      user.status = status;
 
       this.log(
-        u.name +
+        user.name +
         (status === 'active'
           ? ' hesabı etkinleştirildi.'
-          : ' hesabı pasif duruma alındı.')
+          : ' hesabının durumu güncellendi.'),
+        getUserRealm(user)
       );
 
       save();
+
+      return { ok: true };
     },
 
     deleteUser(id) {
-      const d = load();
-      const u = this.user(id);
-      if (!u) return;
+      const actor = this.currentUser();
+      const user = this.user(id);
 
-      d.users = d.users.filter(x => x.id !== id);
+      if (
+        !actor ||
+        actor.role !== 'admin' ||
+        !user ||
+        user.role === 'admin'
+      ) {
+        return {
+          ok: false,
+          error: 'Bu kullanıcı silinemez.'
+        };
+      }
 
-      this.log(u.name + ' hesabı silindi.');
+      const data = load();
+
+      data.users = data.users.filter(
+        item => item.id !== id
+      );
+
+      this.log(user.name + ' hesabı silindi.');
+
       save();
+
+      return { ok: true };
     },
 
     addUser(info) {
@@ -940,43 +818,129 @@
     },
 
     approveTeacher(id, classes) {
-      const d = load();
-      const u = this.user(id);
+      const actor = this.currentUser();
+      const user = this.user(id);
 
-      if (!u || u.role !== 'teacher') return;
+      if (
+        !actor ||
+        actor.role !== 'admin' ||
+        !user ||
+        user.role !== 'teacher'
+      ) {
+        return {
+          ok: false,
+          error: 'Öğretmen onaylanamadı.'
+        };
+      }
 
-      u.status = 'active';
-      u.classes = Array.isArray(classes) ? classes.slice() : [];
+      const selected = safeArray(classes)
+        .filter(item => CLASSES.includes(item));
 
-      let c = d.courses.find(x => x.teacherId === id);
+      user.status = 'active';
+      user.classes = selected;
 
-      if (!c) {
-        c = {
+      const data = load();
+
+      let course = data.courses.find(item =>
+        item.teacherId === id
+      );
+
+      if (!course) {
+        course = {
           id: uid('c'),
-          name: u.branch || 'Ders',
+          name: user.branch || 'Ders',
           teacherId: id,
           classes: []
         };
 
-        d.courses.push(c);
+        data.courses.push(course);
       }
 
-      c.classes = u.classes.slice();
+      course.classes = selected.slice();
 
-      this.log(u.name + ' hesabı onaylandı.');
+      this.log(user.name + ' hesabı onaylandı.');
+
       save();
+
+      return { ok: true };
     },
 
-    /* ---------- Genel bildirimler ---------- */
+    /* =====================================
+       BİLDİRİM ALICILARI
+    ===================================== */
 
-    recipients(aud, senderId) {
-      return resolve(load().users, aud, senderId);
+    resolve(audience, senderId, realm) {
+      const data = load();
+
+      const selectedRealm = realm || currentRealm();
+
+      const sender = data.users.find(
+        user => user.id === senderId
+      );
+
+      const active = data.users.filter(user =>
+        user.status === 'active' &&
+        user.id !== senderId &&
+        getUserRealm(user) === selectedRealm
+      );
+
+      switch (audience && audience.kind) {
+        case 'all':
+          return active.map(user => user.id);
+
+        case 'students':
+          return active
+            .filter(user => user.role === 'student')
+            .map(user => user.id);
+
+        case 'teachers':
+          return active
+            .filter(user => user.role === 'teacher')
+            .map(user => user.id);
+
+        case 'class':
+          return active
+            .filter(user =>
+              user.role === 'student' &&
+              user.class === audience.value
+            )
+            .map(user => user.id);
+
+        case 'myclasses':
+          return active
+            .filter(user =>
+              user.role === 'student' &&
+              sender &&
+              sameRealm(sender, user) &&
+              (sender.classes || []).includes(user.class)
+            )
+            .map(user => user.id);
+
+        case 'user':
+          return active
+            .filter(user => user.id === audience.value)
+            .map(user => user.id);
+
+        case 'users':
+          return active
+            .filter(user =>
+              safeArray(audience.value).includes(user.id)
+            )
+            .map(user => user.id);
+
+        default:
+          return [];
+      }
     },
 
-    audienceLabel(aud) {
-      if (!aud) return '—';
+    recipients(audience, senderId, realm) {
+      return this.resolve(audience, senderId, realm);
+    },
 
-      switch (aud.kind) {
+    audienceLabel(audience) {
+      if (!audience) return '—';
+
+      switch (audience.kind) {
         case 'all':
           return 'Herkes';
 
@@ -987,82 +951,133 @@
           return 'Tüm öğretmenler';
 
         case 'class':
-          return 'Sınıf ' + aud.value;
+          return 'Sınıf ' + audience.value;
 
         case 'myclasses':
           return 'Sınıflarımdaki öğrenciler';
 
         case 'user': {
-          const u = this.user(aud.value);
-          return u ? u.name : 'Silinmiş kullanıcı';
+          const user = this.user(audience.value);
+          return user ? user.name : 'Kullanıcı';
         }
 
         case 'users':
-          return (aud.value || []).length + ' kişi (seçili)';
+          return safeArray(audience.value).length +
+            ' kişi (seçili)';
 
         default:
           return '—';
       }
     },
 
-    recipientCount(n) {
-      return n.status === 'sent'
-        ? n.recipients.length
-        : this.recipients(n.audience, n.senderId).length;
+    recipientCount(notification) {
+      if (notification.status === 'sent') {
+        return safeArray(notification.recipients).length;
+      }
+
+      return this.recipients(
+        notification.audience,
+        notification.senderId,
+        notification.realm
+      ).length;
     },
 
     notification(id) {
-      return load().notifications.find(n => n.id === id) || null;
+      const notification = load().notifications.find(
+        item => item.id === id
+      );
+
+      if (
+        !notification ||
+        notification.realm !== currentRealm()
+      ) {
+        return null;
+      }
+
+      return notification;
     },
 
-    createNotification(data) {
-      const n = Object.assign({
+    createNotification(info) {
+      info = info || {};
+
+      const realm = info.realm || currentRealm();
+
+      const notification = Object.assign({
         id: uid('n'),
         createdAt: new Date().toISOString(),
         scheduledAt: null,
         sentAt: null,
         status: 'draft',
         recipients: [],
-        reads: {}
-      }, data);
+        reads: {},
+        realm
+      }, info);
 
-      load().notifications.push(n);
+      notification.realm = realm;
+
+      load().notifications.push(notification);
+
       save();
 
-      return n;
+      return notification;
     },
 
-    sendNow(n) {
-      n.recipients = this.recipients(n.audience, n.senderId);
-      n.reads = {};
-      n.sentAt = new Date().toISOString();
-      n.status = 'sent';
+    sendNow(notification) {
+      if (
+        !notification ||
+        notification.realm !== currentRealm()
+      ) {
+        return {
+          ok: false,
+          error: 'Bildirim alanı doğrulanamadı.'
+        };
+      }
 
-      const s = this.user(n.senderId);
+      notification.recipients = this.recipients(
+        notification.audience,
+        notification.senderId,
+        notification.realm
+      );
+
+      notification.reads = {};
+      notification.sentAt = new Date().toISOString();
+      notification.status = 'sent';
+
+      const sender = notification.senderId
+        ? this.user(notification.senderId)
+        : null;
 
       this.log(
-        (s ? s.name : 'Bilinmeyen') +
-        ' "' + n.title + '" bildirimini gönderdi.'
+        (sender ? sender.name : 'ODES') +
+        ' "' + notification.title +
+        '" bildirimini gönderdi.',
+        notification.realm
       );
 
       save();
+
+      return { ok: true };
     },
 
     processScheduled() {
+      const data = load();
       let changed = false;
 
-      load().notifications.forEach(n => {
+      data.notifications.forEach(notification => {
         if (
-          n.status === 'scheduled' &&
-          n.scheduledAt &&
-          new Date(n.scheduledAt).getTime() <= Date.now()
+          notification.status === 'scheduled' &&
+          notification.scheduledAt &&
+          new Date(notification.scheduledAt).getTime() <= Date.now()
         ) {
-          const when = n.scheduledAt;
+          notification.recipients = this.recipients(
+            notification.audience,
+            notification.senderId,
+            notification.realm
+          );
 
-          n.recipients = this.recipients(n.audience, n.senderId);
-          n.reads = {};
-          n.sentAt = when;
-          n.status = 'sent';
+          notification.reads = {};
+          notification.sentAt = notification.scheduledAt;
+          notification.status = 'sent';
 
           changed = true;
         }
@@ -1072,63 +1087,101 @@
     },
 
     deleteNotification(id) {
-      const d = load();
+      const notification = this.notification(id);
 
-      d.notifications = d.notifications.filter(n => n.id !== id);
+      if (!notification) return;
+
+      const data = load();
+
+      data.notifications = data.notifications.filter(
+        item => item.id !== id
+      );
 
       save();
     },
 
     inboxFor(userId) {
+      const user = this.user(userId);
+
+      if (!user || user.status !== 'active') {
+        return [];
+      }
+
       return load().notifications
-        .filter(n =>
-          n.status === 'sent' &&
-          (n.recipients || []).includes(userId)
+        .filter(notification =>
+          notification.realm === getUserRealm(user) &&
+          notification.status === 'sent' &&
+          safeArray(notification.recipients).includes(userId)
         )
         .sort((a, b) =>
           new Date(b.sentAt) - new Date(a.sentAt)
         )
-        .map(n => ({
-          n,
-          read: !!(n.reads || {})[userId]
+        .map(notification => ({
+          n: notification,
+          read: !!notification.reads[userId]
         }));
     },
 
-    markRead(nid, userId) {
-      const n = this.notification(nid);
+    markRead(notificationId, userId) {
+      const user = this.user(userId);
+      const notification = this.notification(notificationId);
 
       if (
-        n &&
-        (n.recipients || []).includes(userId) &&
-        !(n.reads || {})[userId]
+        !user ||
+        !notification ||
+        !safeArray(notification.recipients).includes(userId)
       ) {
-        n.reads = n.reads || {};
-        n.reads[userId] = new Date().toISOString();
-        save();
+        return;
       }
+
+      notification.reads = notification.reads || {};
+      notification.reads[userId] = new Date().toISOString();
+
+      save();
     },
 
     markAllRead(userId) {
-      this.inboxFor(userId).forEach(x => {
-        if (!x.read) {
-          x.n.reads = x.n.reads || {};
-          x.n.reads[userId] = new Date().toISOString();
+      const user = this.user(userId);
+
+      if (!user) return;
+
+      this.inboxFor(userId).forEach(item => {
+        if (!item.read) {
+          item.n.reads = item.n.reads || {};
+          item.n.reads[userId] = new Date().toISOString();
         }
       });
 
       save();
     },
 
-    /* ---------- Sorun bildirim sistemi ---------- */
+    /* =====================================
+       SORUN BİLDİRİM SİSTEMİ
+    ===================================== */
 
     reportById(id) {
-      return load().reports.find(r => r.id === id) || null;
+      const report = load().reports.find(
+        item => item.id === id
+      );
+
+      if (!report || report.realm !== currentRealm()) {
+        return null;
+      }
+
+      return report;
     },
 
     reportsForStudent(studentId) {
+      const student = this.user(studentId);
+
+      if (!student || student.role !== 'student') {
+        return [];
+      }
+
       return load().reports
-        .filter(r =>
-          (r.reporterId || r.studentId) === studentId
+        .filter(report =>
+          report.realm === getUserRealm(student) &&
+          (report.reporterId || report.studentId) === studentId
         )
         .sort((a, b) =>
           new Date(b.createdAt) - new Date(a.createdAt)
@@ -1146,17 +1199,22 @@
         return [];
       }
 
-      const classes = teacher.classes || [];
+      const classes = safeArray(teacher.classes);
 
       return load().reports
-        .filter(r =>
-          r.anonymous || classes.includes(r.class)
+        .filter(report =>
+          report.realm === getUserRealm(teacher) &&
+          (
+            report.anonymous ||
+            report.assignedTeacherId === teacherId ||
+            classes.includes(report.class)
+          )
         )
         .sort((a, b) =>
           new Date(b.createdAt) - new Date(a.createdAt)
         )
-        .map(r => {
-          const item = Object.assign({}, r);
+        .map(report => {
+          const item = Object.assign({}, report);
 
           if (item.anonymous) {
             item.studentId = null;
@@ -1170,6 +1228,9 @@
 
     allReports() {
       return load().reports
+        .filter(report =>
+          report.realm === currentRealm()
+        )
         .slice()
         .sort((a, b) =>
           new Date(b.createdAt) - new Date(a.createdAt)
@@ -1193,7 +1254,9 @@
     reportsVisibleTo(userId) {
       const user = this.user(userId);
 
-      if (!user || user.status !== 'active') return [];
+      if (!user || user.status !== 'active') {
+        return [];
+      }
 
       let reports = [];
 
@@ -1202,14 +1265,12 @@
       } else if (user.role === 'teacher') {
         reports = this.reportsForTeacher(userId);
       } else if (user.role === 'student') {
-        reports = load().reports.filter(r =>
-          r.anonymous ||
-          (r.reporterId || r.studentId) === userId
-        );
+        // Öğrenci yalnızca kendi bildirimlerini görebilir.
+        reports = this.reportsForStudent(userId);
       }
 
-      return reports.map(r => {
-        const item = Object.assign({}, r);
+      return reports.map(report => {
+        const item = Object.assign({}, report);
 
         if (item.anonymous && user.role !== 'admin') {
           item.studentId = null;
@@ -1243,7 +1304,9 @@
       const location = String(info.location || '').trim();
       const severity = String(info.severity || 'medium');
       const frequency = String(info.frequency || 'once');
-      const anonymous = info.anonymous === true ||
+
+      const anonymous =
+        info.anonymous === true ||
         info.anonymous === 'true' ||
         info.anonymous === 'on';
 
@@ -1261,7 +1324,7 @@
         };
       }
 
-      if (!location || !SCHOOL_LOCATIONS.includes(location)) {
+      if (!SCHOOL_LOCATIONS.includes(location)) {
         return {
           ok: false,
           error: 'Geçerli bir okul konumu seçmelisin.'
@@ -1283,16 +1346,19 @@
       }
 
       const now = new Date().toISOString();
+      const realm = getUserRealm(student);
 
       const report = {
         id: uid('r'),
+        realm,
 
-        // Yönetici için gerçek gönderen kimliği.
+        // Kimlik, yönetici tarafından gerektiğinde incelenebilir.
         reporterId: student.id,
 
-        // Anonim bildirimde görünür kimlik alanları boş tutulur.
         studentId: anonymous ? null : student.id,
-        studentName: anonymous ? 'Anonim öğrenci' : student.name,
+        studentName: anonymous
+          ? 'Anonim öğrenci'
+          : student.name,
 
         class: student.class || '—',
         anonymous,
@@ -1314,47 +1380,35 @@
         history: [{
           status: 'new',
           actorId: anonymous ? null : student.id,
-          actorName: anonymous ? 'Anonim öğrenci' : student.name,
+          actorName: anonymous
+            ? 'Anonim öğrenci'
+            : student.name,
           note: 'Bildirim oluşturuldu.',
           at: now
         }]
       };
 
-      const d = load();
+      const data = load();
 
-      d.reports.unshift(report);
-      save();
+      data.reports.unshift(report);
 
-      /*
-       * Anonim bildirim:
-       * Bütün aktif kullanıcılara iletilir.
-       * Bildirimde gönderen kimliği kullanılmaz.
-       *
-       * Kimlikli bildirim:
-       * Yöneticilere ve öğrencinin sınıfından sorumlu
-       * öğretmenlere iletilir.
-       */
-
-      let recipients;
-
-      if (anonymous) {
-        recipients = d.users
-          .filter(u => u.status === 'active')
-          .map(u => u.id);
-      } else {
-        recipients = d.users
-          .filter(u =>
-            u.status === 'active' &&
+      // Yalnızca aynı veri alanındaki yönetici ve öğretmenler.
+      const recipients = data.users
+        .filter(user =>
+          user.status === 'active' &&
+          getUserRealm(user) === realm &&
+          (
+            user.role === 'admin' ||
             (
-              u.role === 'admin' ||
+              user.role === 'teacher' &&
               (
-                u.role === 'teacher' &&
-                (u.classes || []).includes(student.class)
+                anonymous ||
+                safeArray(user.classes).includes(student.class)
               )
             )
           )
-          .map(u => u.id);
-      }
+        )
+        .map(user => user.id);
 
       const notification = this.createNotification({
         title: 'Yeni okul güvenliği bildirimi',
@@ -1370,26 +1424,33 @@
           value: recipients
         },
 
-        // Anonim bildirimde gerçek göndereni bildirimden gizle.
-        senderId: anonymous ? null : student.id
+        senderId: null,
+        realm
       });
 
       this.sendNow(notification);
 
-      // Anonim bildirimlerde etkinlik kaydına öğrenci adı yazılmaz.
       this.log(
         anonymous
           ? 'Anonim bir okul güvenliği bildirimi oluşturuldu.'
-          : student.name + ' yeni bir okul güvenliği bildirimi oluşturdu.'
+          : student.name +
+            ' yeni bir okul güvenliği bildirimi oluşturdu.',
+        realm
       );
+
+      save();
+
+      const visibleReport = Object.assign({}, report, {
+        studentId: anonymous ? null : student.id,
+        studentName: anonymous
+          ? 'Anonim öğrenci'
+          : student.name,
+        reporterId: undefined
+      });
 
       return {
         ok: true,
-        report: Object.assign({}, report, {
-          studentId: anonymous ? null : student.id,
-          studentName: anonymous ? 'Anonim öğrenci' : student.name,
-          reporterId: undefined
-        })
+        report: visibleReport
       };
     },
 
@@ -1407,7 +1468,8 @@
       if (
         !actor ||
         actor.status !== 'active' ||
-        (actor.role !== 'teacher' && actor.role !== 'admin')
+        !['teacher', 'admin'].includes(actor.role) ||
+        report.realm !== getUserRealm(actor)
       ) {
         return {
           ok: false,
@@ -1425,11 +1487,12 @@
       if (
         actor.role === 'teacher' &&
         !report.anonymous &&
-        !(actor.classes || []).includes(report.class)
+        report.assignedTeacherId !== actor.id &&
+        !safeArray(actor.classes).includes(report.class)
       ) {
         return {
           ok: false,
-          error: 'Bu sınıfa ait bildirim üzerinde işlem yapamazsın.'
+          error: 'Bu bildirim üzerinde işlem yapamazsın.'
         };
       }
 
@@ -1443,20 +1506,19 @@
         report.assignedTeacherId = actor.id;
       }
 
-      report.history = report.history || [];
+      report.history = safeArray(report.history);
 
       report.history.push({
         status,
         actorId: actor.id,
         actorName: actor.name,
-        note: cleanNote || REPORT_STATUSES[status] + ' olarak güncellendi.',
+        note: cleanNote ||
+          REPORT_STATUSES[status] + ' olarak güncellendi.',
         at: now
       });
 
       save();
 
-      // Anonim bildirimin sahibine bildirim gönderilmez.
-      // Kimlikli bildirimin sahibine durum bilgisi gönderilir.
       if (!report.anonymous && report.reporterId) {
         const notification = this.createNotification({
           title: 'Bildirimin güncellendi',
@@ -1474,7 +1536,8 @@
             value: report.reporterId
           },
 
-          senderId: actor.id
+          senderId: actor.id,
+          realm: report.realm
         });
 
         this.sendNow(notification);
@@ -1485,10 +1548,14 @@
         ', "' + report.title +
         '" bildirimini "' +
         REPORT_STATUSES[status] +
-        '" yaptı.'
+        '" yaptı.',
+        report.realm
       );
 
-      return { ok: true, report };
+      return {
+        ok: true,
+        report
+      };
     },
 
     assignReport(reportId, teacherId, actorId) {
@@ -1496,8 +1563,13 @@
       const teacher = this.user(teacherId);
       const actor = this.user(actorId);
 
-      if (!report || !teacher || teacher.role !== 'teacher' ||
-          teacher.status !== 'active') {
+      if (
+        !report ||
+        !teacher ||
+        teacher.role !== 'teacher' ||
+        teacher.status !== 'active' ||
+        report.realm !== getUserRealm(teacher)
+      ) {
         return {
           ok: false,
           error: 'Bildirim veya öğretmen bulunamadı.'
@@ -1507,7 +1579,8 @@
       if (
         !actor ||
         actor.status !== 'active' ||
-        (actor.role !== 'admin' && actor.role !== 'teacher')
+        !['admin', 'teacher'].includes(actor.role) ||
+        report.realm !== getUserRealm(actor)
       ) {
         return {
           ok: false,
@@ -1518,7 +1591,7 @@
       if (
         actor.role === 'teacher' &&
         !report.anonymous &&
-        !(actor.classes || []).includes(report.class)
+        !safeArray(actor.classes).includes(report.class)
       ) {
         return {
           ok: false,
@@ -1528,7 +1601,7 @@
 
       if (
         !report.anonymous &&
-        !(teacher.classes || []).includes(report.class)
+        !safeArray(teacher.classes).includes(report.class)
       ) {
         return {
           ok: false,
@@ -1539,13 +1612,15 @@
       report.assignedTeacherId = teacher.id;
       report.updatedAt = new Date().toISOString();
 
-      report.history = report.history || [];
+      report.history = safeArray(report.history);
 
       report.history.push({
         status: report.status,
         actorId: actor.id,
         actorName: actor.name,
-        note: teacher.name + ' bildirimden sorumlu öğretmen olarak atandı.',
+        note:
+          teacher.name +
+          ' bildirimden sorumlu öğretmen olarak atandı.',
         at: report.updatedAt
       });
 
@@ -1553,14 +1628,15 @@
 
       this.log(
         teacher.name +
-        ' bir okul güvenliği bildirimi için sorumlu öğretmen olarak atandı.'
+        ' bir okul güvenliği bildirimi için sorumlu öğretmen olarak atandı.',
+        report.realm
       );
 
       return { ok: true, report };
     },
 
     reportStats() {
-      const reports = load().reports;
+      const reports = this.allReports();
 
       return {
         total: reports.length,
@@ -1571,169 +1647,48 @@
       };
     },
 
-    /* ---------- Akademik yardımcılar (eski modüllerle uyumluluk) ---------- */
+    /* =====================================
+       YARDIMCI FONKSİYONLAR
+    ===================================== */
 
-    students(cls) {
-      return load().users.filter(u =>
-        u.role === 'student' &&
-        u.status === 'active' &&
-        (!cls || u.class === cls)
+    students(className) {
+      return load().users.filter(user =>
+        user.role === 'student' &&
+        user.status === 'active' &&
+        getUserRealm(user) === currentRealm() &&
+        (!className || user.class === className)
       );
     },
 
-    courseName(cid) {
-      const c = load().courses.find(x => x.id === cid);
-      return c ? c.name : '—';
-    },
+    coursesOfTeacher(teacherId) {
+      const teacher = this.user(teacherId);
 
-    coursesOfTeacher(tid) {
-      return load().courses.filter(c => c.teacherId === tid);
-    },
-
-    assignmentsFor(user) {
-      return load().assignments
-        .filter(a => a.class === user.class)
-        .map(a => Object.assign({}, a, {
-          isDone: !!(a.done && a.done[user.id]),
-          courseName: this.courseName(a.courseId)
-        }))
-        .sort((a, b) =>
-          new Date(a.due) - new Date(b.due)
-        );
-    },
-
-    toggleAssignment(aid, userId) {
-      const a = load().assignments.find(x => x.id === aid);
-      if (!a) return;
-
-      a.done = a.done || {};
-
-      if (a.done[userId]) {
-        delete a.done[userId];
-      } else {
-        a.done[userId] = true;
+      if (!teacher || teacher.role !== 'teacher') {
+        return [];
       }
 
-      save();
-    },
-
-    scheduleFor(cls) {
-      const base = [
-        [1, '09:00', 'c1'],
-        [1, '10:00', 'c2'],
-        [1, '11:00', 'c3'],
-        [2, '09:00', 'c3'],
-        [2, '10:00', 'c1'],
-        [2, '13:00', 'c2'],
-        [3, '09:00', 'c2'],
-        [3, '10:00', 'c3'],
-        [3, '11:00', 'c1'],
-        [4, '09:00', 'c1'],
-        [4, '10:00', 'c3'],
-        [4, '12:00', 'c2'],
-        [5, '09:00', 'c2'],
-        [5, '10:00', 'c1'],
-        [5, '11:00', 'c3']
-      ];
-
-      const room = {
-        '10-A': 'B-101',
-        '11-A': 'A-204',
-        '11-B': 'A-205'
-      }[cls] || 'A-100';
-
-      return base
-        .map(b => ({
-          day: b[0],
-          time: b[1],
-          course: load().courses.find(c => c.id === b[2])
-        }))
-        .filter(x =>
-          x.course && x.course.classes.includes(cls)
-        )
-        .map(x => ({
-          day: x.day,
-          time: x.time,
-          courseName: x.course.name,
-          teacher: (store.user(x.course.teacherId) || {}).name || '—',
-          room
-        }));
-    },
-
-    weighted(g) {
-      return g
-        ? Math.round((
-          g.vize * 0.4 +
-          g.quiz * 0.2 +
-          g.proje * 0.4
-        ) * 10) / 10
-        : null;
-    },
-
-    gradesFor(sid) {
-      const u = this.user(sid);
-      const d = load();
-
-      return d.courses
-        .filter(c => u && c.classes.includes(u.class))
-        .map(c => {
-          const g = (d.grades[sid] || {})[c.id] || null;
-
-          return {
-            course: c,
-            g,
-            avg: this.weighted(g)
-          };
-        });
-    },
-
-    overallAvg(sid) {
-      const a = this.gradesFor(sid)
-        .map(x => x.avg)
-        .filter(x => x != null);
-
-      return a.length
-        ? Math.round(
-          a.reduce((s, x) => s + x, 0) / a.length * 10
-        ) / 10
-        : null;
-    },
-
-    absences(sid) {
-      return Object.values(load().attendance)
-        .filter(rec => rec[sid] === 'absent')
-        .length;
-    },
-
-    getAttendance(date, cls) {
-      return Object.assign(
-        {},
-        load().attendance[date + '|' + cls] || {}
+      return load().courses.filter(course =>
+        course.teacherId === teacherId
       );
-    },
-
-    setAttendance(date, cls, rec) {
-      load().attendance[date + '|' + cls] = rec;
-      save();
-    },
-
-    hasAttendance(date, cls) {
-      return !!load().attendance[date + '|' + cls];
     }
   };
 
   global.ODES = {
     store,
+
     TYPES,
     STATUSES,
+
     REPORT_STATUSES,
     REPORT_CATEGORIES,
     REPORT_SEVERITIES,
     REPORT_FREQUENCIES,
+
     SCHOOL_LOCATIONS,
     ROLES,
     CLASSES,
     DAYS,
+
     DAY,
     HOUR
   };
