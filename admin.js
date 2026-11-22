@@ -43,14 +43,72 @@
   ODES.pages.admin = function (root, user) {
 
     /* =====================================
-       ORTAK YARDIMCILAR
+       DEMO / ÖRNEK HESAP AYRIMI
     ===================================== */
 
-    const users = () => store.db().users;
+    const DEMO_USER_IDS = new Set([
+      'a1',
+      't1', 't2', 't3', 't4',
+      's1', 's2', 's3', 's4', 's5',
+      's6', 's7', 's8', 's9', 's10', 's11'
+    ]);
 
-    function reports() {
-      return store.adminReports(user.id) || [];
+    function allUsers() {
+      return store.db().users || [];
     }
+
+    // Demo yönetici yalnızca örnek hesapları görür.
+    function users() {
+      return allUsers().filter(u =>
+        DEMO_USER_IDS.has(u.id)
+      );
+    }
+
+    // Demo yönetici yalnızca örnek öğrenci hesaplarının
+    // oluşturduğu risk bildirimlerini görür.
+    function reports() {
+      const demoIds = new Set(
+        users().map(u => u.id)
+      );
+
+      return (store.adminReports(user.id) || []).filter(r =>
+        demoIds.has(r.reporterId)
+      );
+    }
+
+    // Gerçek kullanıcılarla ilişkili etkinlikleri gizle.
+    function safeActivity() {
+      const demoIds = new Set(
+        users().map(u => u.id)
+      );
+
+      const privateUsers = allUsers().filter(u =>
+        !demoIds.has(u.id)
+      );
+
+      return (store.db().activity || []).filter(item => {
+        const actorId =
+          item.actorId ||
+          item.userId ||
+          item.byUserId ||
+          null;
+
+        if (actorId && !demoIds.has(actorId)) {
+          return false;
+        }
+
+        const message = String(item.text || '');
+
+        return !privateUsers.some(u =>
+          (u.name && message.includes(u.name)) ||
+          (u.email && message.includes(u.email))
+        );
+      });
+    }
+
+    /* =====================================
+       ORTAK YARDIMCILAR
+    ===================================== */
 
     function activeTeachers() {
       return users().filter(u =>
@@ -86,7 +144,7 @@
 
     function reportRow(report) {
       const teacher = report.assignedTeacherId
-        ? store.user(report.assignedTeacherId)
+        ? users().find(u => u.id === report.assignedTeacherId)
         : null;
 
       return '<tr>' +
@@ -116,9 +174,7 @@
 
         '<td data-label="Gönderen">' +
           (report.anonymous
-            ? '<span class="badge b-neutral">Anonim</span><small class="muted" style="display:block">Gönderen: ' +
-                esc((store.user(report.reporterId) || {}).name || 'Bilinmiyor') +
-              '</small>'
+            ? '<span class="badge b-neutral">Anonim</span>'
             : esc(report.studentName || 'Bilinmiyor')
           ) +
         '</td>' +
@@ -349,7 +405,7 @@
                   '<a href="#log">Tümü</a>' +
                 '</div>' +
 
-                (store.db().activity.slice(0, 5).map(a =>
+                (safeActivity().slice(0, 5).map(a =>
                   '<div class="li">' +
                     '<div class="grow">' +
                       '<span>' + esc(a.text) + '</span>' +
@@ -436,10 +492,9 @@
               '</p></div>' +
 
               '<div><small class="muted">Gönderen</small><p>' +
-                esc(
-                  report.anonymous
-                    ? ((store.user(report.reporterId) || {}).name || 'Bilinmiyor')
-                    : (report.studentName || 'Bilinmiyor')
+                (report.anonymous
+                  ? 'Anonim'
+                  : esc(report.studentName || 'Bilinmiyor')
                 ) +
               '</p></div>' +
 
@@ -777,8 +832,11 @@
 
         $$('[data-detail]', el).forEach(button => {
           button.addEventListener('click', () => {
-            const report = store.reportById(button.dataset.detail);
-            reportDetail(report);
+            const report = reports().find(r =>
+              r.id === button.dataset.detail
+            );
+
+            if (report) reportDetail(report);
           });
         });
       }
@@ -963,18 +1021,6 @@
       let role = 'all';
       let status = 'all';
 
-      const acts = $('#pageActions');
-
-      if (acts) {
-        acts.innerHTML =
-          '<button class="btn btn-primary" type="button" id="addU">' +
-            icon('plus', 16) +
-            ' Kullanıcı ekle' +
-          '</button>';
-
-        $('#addU').addEventListener('click', openAdd);
-      }
-
       function draw() {
         const norm = s =>
           String(s || '').toLocaleLowerCase('tr-TR');
@@ -992,7 +1038,10 @@
           '<div class="card flush">' +
 
             '<div class="card-h">' +
-              '<h3>Kullanıcı yönetimi</h3>' +
+              '<div>' +
+                '<h3>Örnek kullanıcılar</h3>' +
+                '<p class="muted small">Demo yönetici yalnızca prototip hesaplarını görüntüler.</p>' +
+              '</div>' +
             '</div>' +
 
             '<div class="toolbar" style="margin:0;padding:14px;flex-wrap:wrap">' +
@@ -1105,7 +1154,7 @@
                   }).join('') ||
 
                     '<tr><td colspan="5">' +
-                      emptyState('Eşleşen kullanıcı yok.', 'search') +
+                      emptyState('Eşleşen örnek kullanıcı yok.', 'search') +
                     '</td></tr>'
                   ) +
 
@@ -1141,7 +1190,7 @@
 
         $$('[data-tg]', el).forEach(button => {
           button.addEventListener('click', () => {
-            const u = store.user(button.dataset.tg);
+            const u = users().find(x => x.id === button.dataset.tg);
             if (!u) return;
 
             const next = u.status === 'active' ? 'inactive' : 'active';
@@ -1161,13 +1210,13 @@
 
         $$('[data-rm]', el).forEach(button => {
           button.addEventListener('click', async () => {
-            const u = store.user(button.dataset.rm);
+            const u = users().find(x => x.id === button.dataset.rm);
             if (!u) return;
 
             const ok = await confirmDialog({
-              title: 'Kullanıcıyı sil',
+              title: 'Örnek kullanıcıyı sil',
               message: u.name +
-                ' hesabı kalıcı olarak silinecek. Bu işlem kullanıcının eski bildirim kayıtlarını da etkileyebilir. Devam edilsin mi?',
+                ' örnek hesabı kalıcı olarak silinecek. Devam edilsin mi?',
               confirmLabel: 'Sil',
               danger: true
             });
@@ -1175,160 +1224,20 @@
             if (!ok) return;
 
             store.deleteUser(u.id);
-            toast('Kullanıcı silindi.', 'success');
+            toast('Örnek kullanıcı silindi.', 'success');
             draw();
           });
         });
 
         $$('[data-ap]', el).forEach(button => {
           button.addEventListener('click', () => {
-            approveDialog(store.user(button.dataset.ap), draw);
+            const u = users().find(x => x.id === button.dataset.ap);
+            approveDialog(u, draw);
           });
         });
       }
 
       draw();
-    }
-
-    function openAdd() {
-      const html =
-        '<form id="uForm" novalidate>' +
-
-          '<div class="field">' +
-            '<label for="uName">Ad soyad</label>' +
-            '<input class="input" id="uName" maxlength="100">' +
-            '<span class="err" id="uNameErr"></span>' +
-          '</div>' +
-
-          '<div class="field">' +
-            '<label for="uEmail">E-posta</label>' +
-            '<input class="input" id="uEmail" type="email">' +
-            '<span class="err" id="uEmailErr"></span>' +
-          '</div>' +
-
-          '<div class="field">' +
-            '<label for="uRole">Rol</label>' +
-            '<select class="select" id="uRole">' +
-              '<option value="student">Öğrenci</option>' +
-              '<option value="teacher">Öğretmen</option>' +
-            '</select>' +
-          '</div>' +
-
-          '<div class="field" id="uClassF">' +
-            '<label for="uClass">Sınıf</label>' +
-            '<select class="select" id="uClass">' +
-              CLASSES.map(c =>
-                '<option value="' + esc(c) + '">' + esc(c) + '</option>'
-              ).join('') +
-            '</select>' +
-          '</div>' +
-
-          '<div class="field" id="uBranchF" hidden>' +
-            '<label for="uBranch">Branş</label>' +
-            '<input class="input" id="uBranch">' +
-            '<span class="err" id="uBranchErr"></span>' +
-          '</div>' +
-
-        '</form>';
-
-      modal({
-        title: 'Kullanıcı ekle',
-        html,
-
-        onOpen: box => {
-          $('#uRole', box).addEventListener('change', e => {
-            const teacher = e.target.value === 'teacher';
-            $('#uClassF', box).hidden = teacher;
-            $('#uBranchF', box).hidden = !teacher;
-          });
-        },
-
-        actions: [
-          { label: 'Vazgeç' },
-
-          {
-            label: 'Ekle',
-            kind: 'primary',
-
-            onClick: (close, box) => {
-              const name = $('#uName', box);
-              const email = $('#uEmail', box);
-              const role = $('#uRole', box).value;
-              const branch = $('#uBranch', box);
-
-              let valid = true;
-
-              const check = (bad, id, input, message) => {
-                $('#' + id, box).textContent = bad ? message : '';
-
-                if (input) {
-                  if (bad) input.setAttribute('aria-invalid', 'true');
-                  else input.removeAttribute('aria-invalid');
-                }
-
-                if (bad) valid = false;
-              };
-
-              check(
-                name.value.trim().length < 3,
-                'uNameErr',
-                name,
-                'Ad soyad en az 3 karakter olmalı.'
-              );
-
-              check(
-                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.value.trim()),
-                'uEmailErr',
-                email,
-                'Geçerli bir e-posta girin.'
-              );
-
-              if (role === 'teacher') {
-                check(
-                  branch.value.trim().length < 2,
-                  'uBranchErr',
-                  branch,
-                  'Branş gerekli.'
-                );
-              }
-
-              if (!valid) return false;
-
-              const result = store.addUser({
-                name: name.value,
-                email: email.value,
-                role,
-                class: $('#uClass', box).value,
-                branch: branch.value
-              });
-
-              if (!result || !result.ok) {
-                check(
-                  true,
-                  'uEmailErr',
-                  email,
-                  result && result.error
-                    ? result.error
-                    : 'Kullanıcı eklenemedi.'
-                );
-
-                return false;
-              }
-
-              // Öğretmenler doğrudan aktif edilmez.
-              // Önce sınıfları belirlenerek onay bekleyenlere eklenir.
-              toast(
-                role === 'teacher'
-                  ? 'Öğretmen kaydı oluşturuldu. Onay bekliyor.'
-                  : 'Öğrenci hesabı oluşturuldu.',
-                'success'
-              );
-
-              refreshPage();
-            }
-          }
-        ]
-      });
     }
 
     /* =====================================
@@ -1404,8 +1313,8 @@
 
           '<div class="card-h">' +
             '<div>' +
-              '<h3>Onay bekleyen öğretmenler</h3>' +
-              '<p class="muted small">Öğretmen kayıtlarını inceleyip görev yapacakları sınıfları belirleyin.</p>' +
+              '<h3>Örnek öğretmen onayları</h3>' +
+              '<p class="muted small">Demo ortamındaki öğretmen kayıtlarını inceleyin.</p>' +
             '</div>' +
             '<span class="badge b-warning">' + list.length + ' bekleyen</span>' +
           '</div>' +
@@ -1433,26 +1342,27 @@
             '</div>'
           ).join('') ||
 
-            emptyState('Onay bekleyen öğretmen kaydı yok.', 'shield')
+            emptyState('Onay bekleyen örnek öğretmen kaydı yok.', 'shield')
           ) +
 
         '</div>';
 
       $$('[data-ap]', el).forEach(button => {
         button.addEventListener('click', () => {
-          approveDialog(store.user(button.dataset.ap), refresh);
+          const u = users().find(x => x.id === button.dataset.ap);
+          approveDialog(u, refresh);
         });
       });
 
       $$('[data-rj]', el).forEach(button => {
         button.addEventListener('click', async () => {
-          const u = store.user(button.dataset.rj);
+          const u = users().find(x => x.id === button.dataset.rj);
           if (!u) return;
 
           const ok = await confirmDialog({
-            title: 'Öğretmen kaydını reddet',
+            title: 'Örnek öğretmen kaydını reddet',
             message: u.name +
-              ' hesabı silinecek. Bu işlem geri alınamaz.',
+              ' örnek hesabı silinecek. Bu işlem geri alınamaz.',
             confirmLabel: 'Reddet',
             danger: true
           });
@@ -1460,7 +1370,7 @@
           if (!ok) return;
 
           store.deleteUser(u.id);
-          toast('Öğretmen kaydı reddedildi.', 'success');
+          toast('Örnek öğretmen kaydı reddedildi.', 'success');
           refresh();
         });
       });
@@ -1471,7 +1381,7 @@
     ===================================== */
 
     function log(el) {
-      const activity = store.db().activity || [];
+      const activity = safeActivity();
 
       el.innerHTML =
         '<div class="card">' +
@@ -1479,7 +1389,7 @@
           '<div class="card-h">' +
             '<div>' +
               '<h3>Etkinlik günlüğü</h3>' +
-              '<p class="muted small">Sistemde gerçekleşen son işlemler.</p>' +
+              '<p class="muted small">Demo ortamındaki işlemler.</p>' +
             '</div>' +
             '<span class="badge b-info">' + activity.length + ' kayıt</span>' +
           '</div>' +
@@ -1536,20 +1446,20 @@
       },
 
       users: {
-        title: 'Kullanıcılar',
-        sub: 'Öğrenci ve öğretmen hesaplarını yönetin.',
+        title: 'Örnek kullanıcılar',
+        sub: 'Demo öğrenci ve öğretmen hesapları.',
         render: usersSection
       },
 
       pending: {
         title: 'Öğretmen onayları',
-        sub: 'Öğretmen kayıtlarını onaylayın veya reddedin.',
+        sub: 'Demo öğretmen kayıtlarını onaylayın veya reddedin.',
         render: pending
       },
 
       log: {
         title: 'Etkinlik günlüğü',
-        sub: 'Sistemde gerçekleşen işlemleri görüntüleyin.',
+        sub: 'Demo ortamındaki işlemleri görüntüleyin.',
         render: log
       },
 
