@@ -1,171 +1,683 @@
+
+/* =========================================
+   ODES — ÖĞRETMEN PANELİ
+   Güvenlik bildirimleri ve risk yönetimi
+========================================= */
+
 (function () {
   'use strict';
-  const { $, $$, esc, icon, store, sections, statCard, emptyState, fmtDT, fmtD, relDue, statusBadge, typeBadge, avatar, renderInbox, modal, confirmDialog, toast, pct } = ODES;
+
+  const {
+    $,
+    $$,
+    esc,
+    icon,
+    store,
+    sections,
+    statCard,
+    emptyState,
+    fmtDT,
+    renderInbox,
+    modal,
+    toast
+  } = ODES;
 
   ODES.pages.teacher = function (root, user) {
-    const myClasses = () => (store.user(user.id).classes || []).slice();
-    const myCourses = () => store.coursesOfTeacher(user.id);
-    const mySent = () => store.db().notifications.filter(n => n.senderId === user.id);
-    const myAssignments = () => store.db().assignments.filter(a => a.createdBy === user.id).sort((a, b) => new Date(a.due) - new Date(b.due));
 
-    function noClassNotice() {
-      return '<div class="card">' + emptyState('Henüz size atanmış sınıf yok. Hesabınız onaylandığında sınıflar yönetici tarafından atanır.', 'users') + '</div>';
+    const STATUS = {
+      new: 'Yeni',
+      reviewing: 'İnceleniyor',
+      resolved: 'Çözüldü',
+      closed: 'Kapatıldı'
+    };
+
+    const CATEGORY = {
+      bullying: 'Akran zorbalığı',
+      safety: 'Güvenlik',
+      facility: 'Fiziksel ortam',
+      communication: 'İletişim',
+      other: 'Diğer'
+    };
+
+    const SEVERITY = {
+      low: 'Düşük',
+      medium: 'Orta',
+      high: 'Yüksek',
+      critical: 'Kritik'
+    };
+
+    const FREQUENCY = {
+      once: 'Bir kez',
+      sometimes: 'Bazen',
+      often: 'Sık sık',
+      constant: 'Sürekli'
+    };
+
+    const STATUS_CLASS = {
+      new: 'b-info',
+      reviewing: 'b-warning',
+      resolved: 'b-success',
+      closed: 'b-neutral'
+    };
+
+    const SEVERITY_CLASS = {
+      low: 'b-neutral',
+      medium: 'b-info',
+      high: 'b-warning',
+      critical: 'b-danger'
+    };
+
+    let searchText = '';
+    let statusFilter = 'all';
+    let severityFilter = 'all';
+    let categoryFilter = 'all';
+
+    function reports() {
+      return store.reportsForTeacher(user.id) || [];
     }
 
-    function overview(el) {
-      const classes = myClasses();
-      const studentCount = classes.reduce((s, c) => s + store.students(c).length, 0);
-      const open = myAssignments().filter(a => new Date(a.due) >= new Date(new Date().setHours(0, 0, 0, 0)));
-      const sent = mySent();
-      const unread = store.inboxFor(user.id).filter(x => !x.read).length;
-      el.innerHTML = '<div class="stack-v">' +
-        '<div class="card hero"><div><h2>Merhaba, ' + esc(user.name.split(' ')[0]) + '</h2><p>' + esc(user.branch || 'Öğretmen') + ' · ' + classes.length + ' sınıf</p></div>' +
-        '<div class="page-actions"><a class="btn btn-light" href="notification-create.html">' + icon('plus', 16) + 'Bildirim oluştur</a><a class="btn btn-light" href="#attendance">' + icon('clipboard', 16) + 'Yoklama al</a></div></div>' +
-        '<div class="grid g4">' +
-          statCard({ label: 'Sınıf', value: classes.length, icon: 'users', tone: 'primary', href: '#classes' }) +
-          statCard({ label: 'Öğrenci', value: studentCount, icon: 'user', tone: 'info', href: '#classes' }) +
-          statCard({ label: 'Açık ödev', value: open.length, icon: 'book', tone: 'warning', href: '#assignments' }) +
-          statCard({ label: 'Gönderdiğim bildirim', value: sent.filter(n => n.status === 'sent').length, icon: 'send', tone: 'success', href: 'notification-history.html' }) +
-        '</div>' +
-        '<div class="grid g2">' +
-          '<div class="card"><div class="card-h"><h3>Yaklaşan ödevler</h3><a href="#assignments">Yönet</a></div>' +
-            (open.slice(0, 4).map(a => { const d = relDue(a.due); return '<div class="li"><div class="grow"><b>' + esc(a.title) + '</b><small class="muted">' + esc(a.class) + ' · ' + esc(store.courseName(a.courseId)) + '</small></div><span class="badge ' + d.cls + '">' + esc(d.text) + '</span></div>'; }).join('') || emptyState('Açık ödev yok.', 'book')) + '</div>' +
-          '<div class="card"><div class="card-h"><h3>Son bildirimlerim</h3><a href="notification-history.html">Geçmiş</a></div>' +
-            (sent.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 4).map(n => {
-              const total = store.recipientCount(n), read = Object.keys(n.reads).length;
-              return '<div class="li"><div class="grow"><b>' + esc(n.title) + '</b><small class="muted">' + (n.status === 'sent' ? read + '/' + total + ' okudu' : esc(store.audienceLabel(n.audience))) + '</small></div>' + statusBadge(n.status) + '</div>';
-            }).join('') || emptyState('Henüz bildirim göndermediniz.', 'send')) + '</div>' +
-        '</div>' + (unread ? '<div class="alert info">' + icon('bell') + '<span>' + unread + ' okunmamış bildiriminiz var. <a href="#inbox">Görüntüle</a></span></div>' : '') +
-        '</div>';
+    function statusBadge(status) {
+      return `
+        <span class="badge ${STATUS_CLASS[status] || 'b-neutral'}">
+          ${esc(STATUS[status] || status || 'Bilinmiyor')}
+        </span>
+      `;
     }
 
-    function classes(el) {
-      const cls = myClasses();
-      if (!cls.length) { el.innerHTML = noClassNotice(); return; }
-      let cur = cls[0], q = '';
-      function draw() {
-        const courseIds = myCourses().map(c => c.id);
-        const list = store.students(cur).filter(s => s.name.toLocaleLowerCase('tr-TR').includes(q.toLocaleLowerCase('tr-TR')));
-        el.innerHTML = '<div class="card flush"><div class="card-h"><div class="tabs">' + cls.map(c => '<button type="button" class="tab ' + (c === cur ? 'active' : '') + '" data-c="' + esc(c) + '">' + esc(c) + '<small>' + store.students(c).length + '</small></button>').join('') + '</div>' +
-          '<div class="search" style="position:relative;min-width:220px">' + '<input class="input" id="q" type="search" placeholder="Öğrenci ara" aria-label="Öğrenci ara" value="' + esc(q) + '"></div></div>' +
-          '<div class="table-wrap"><table class="table stack"><thead><tr><th>Öğrenci</th><th>Ortalama (dersim)</th><th>Devamsızlık</th><th></th></tr></thead><tbody>' +
-          (list.map(s => {
-            const rows = store.gradesFor(s.id).filter(r => courseIds.includes(r.course.id) && r.avg != null);
-            const avg = rows.length ? Math.round(rows.reduce((t, r) => t + r.avg, 0) / rows.length * 10) / 10 : null;
-            const abs = store.absences(s.id);
-            return '<tr><td data-label="Öğrenci"><div class="person">' + avatar(s.name, 'sm') + '<div><b>' + esc(s.name) + '</b><small>' + esc(s.email) + '</small></div></div></td>' +
-              '<td data-label="Ortalama"><span class="badge ' + (avg == null ? 'b-neutral' : avg >= 70 ? 'b-success' : 'b-warning') + '">' + (avg == null ? '—' : avg) + '</span></td>' +
-              '<td data-label="Devamsızlık"><span class="badge ' + (abs > 1 ? 'b-danger' : 'b-neutral') + '">' + abs + ' gün</span></td>' +
-              '<td class="actions"><a class="btn btn-sm" href="notification-create.html?user=' + esc(s.id) + '">' + icon('send', 14) + 'Mesaj gönder</a></td></tr>';
-          }).join('') || '<tr><td colspan="4">' + emptyState('Öğrenci bulunamadı.', 'search') + '</td></tr>') +
-          '</tbody></table></div></div>';
-        $$('[data-c]', el).forEach(b => b.addEventListener('click', () => { cur = b.dataset.c; draw(); }));
-        const qi = $('#q', el);
-        qi.addEventListener('input', () => { q = qi.value; const pos = qi.selectionStart; draw(); const n = $('#q', el); n.focus(); n.setSelectionRange(pos, pos); });
-      }
-      draw();
+    function severityBadge(severity) {
+      return `
+        <span class="badge ${SEVERITY_CLASS[severity] || 'b-neutral'}">
+          ${esc(SEVERITY[severity] || severity || 'Belirtilmemiş')}
+        </span>
+      `;
     }
 
-    function attendance(el) {
-      const cls = myClasses();
-      if (!cls.length) { el.innerHTML = noClassNotice(); return; }
-      let cur = cls[0];
-      let date = store.dateKey();
-      let rec = {};
-      function load() {
-        const students = store.students(cur);
-        const saved = store.getAttendance(date, cur);
-        rec = {};
-        students.forEach(s => { rec[s.id] = saved[s.id] || 'present'; });
-      }
-      function draw() {
-        const students = store.students(cur);
-        const absent = students.filter(s => rec[s.id] === 'absent').length;
-        const saved = store.hasAttendance(date, cur);
-        el.innerHTML = '<div class="card"><div class="toolbar"><div class="filters">' +
-          '<select class="select" id="selC" aria-label="Sınıf">' + cls.map(c => '<option ' + (c === cur ? 'selected' : '') + '>' + esc(c) + '</option>').join('') + '</select>' +
-          '<input class="input" type="date" id="selD" max="' + store.dateKey() + '" value="' + date + '" aria-label="Tarih" style="width:auto"></div>' +
-          '<div><span class="badge b-success">Var: ' + (students.length - absent) + '</span> <span class="badge b-danger">Yok: ' + absent + '</span> ' + (saved ? '<span class="badge b-info">Kayıtlı</span>' : '<span class="badge b-neutral">Kaydedilmedi</span>') + '</div></div>' +
-          (students.length ? '<div class="list">' + students.map(s => '<div class="li"><div class="person grow">' + avatar(s.name, 'sm') + '<b>' + esc(s.name) + '</b></div><div class="seg" role="group" aria-label="' + esc(s.name) + ' yoklama">' +
-            '<button type="button" data-s="' + esc(s.id) + '" data-v="present" class="' + (rec[s.id] === 'present' ? 'on-ok' : '') + '" aria-pressed="' + (rec[s.id] === 'present') + '">Var</button>' +
-            '<button type="button" data-s="' + esc(s.id) + '" data-v="absent" class="' + (rec[s.id] === 'absent' ? 'on-no' : '') + '" aria-pressed="' + (rec[s.id] === 'absent') + '">Yok</button></div></div>').join('') + '</div>' : emptyState('Bu sınıfta öğrenci yok.')) +
-          '<div class="modal-f" style="padding:16px 0 0;border:0"><button class="btn" type="button" id="allP">Hepsini var işaretle</button><button class="btn btn-primary" type="button" id="saveA"' + (students.length ? '' : ' disabled') + '>' + icon('check', 16) + 'Yoklamayı kaydet</button></div></div>';
-        $('#selC', el).addEventListener('change', e => { cur = e.target.value; load(); draw(); });
-        $('#selD', el).addEventListener('change', e => { if (e.target.value) { date = e.target.value; load(); draw(); } });
-        $$('[data-s]', el).forEach(b => b.addEventListener('click', () => { rec[b.dataset.s] = b.dataset.v; draw(); }));
-        $('#allP', el).addEventListener('click', () => { Object.keys(rec).forEach(k => { rec[k] = 'present'; }); draw(); });
-        $('#saveA', el).addEventListener('click', () => {
-          store.setAttendance(date, cur, Object.assign({}, rec));
-          store.log(user.name + ' ' + cur + ' sınıfı için ' + date + ' yoklamasını kaydetti.');
-          toast('Yoklama kaydedildi.', 'success'); draw();
-        });
-      }
-      load(); draw();
+    function categoryName(category) {
+      return CATEGORY[category] || 'Diğer';
     }
 
-    function assignments(el, refresh) {
-      const cls = myClasses();
-      function draw() {
-        const list = myAssignments();
-        el.innerHTML = '<div class="card flush"><div class="card-h"><h3>Verdiğim ödevler</h3><button class="btn btn-primary btn-sm" type="button" id="newA"' + (cls.length && myCourses().length ? '' : ' disabled') + '>' + icon('plus', 14) + 'Yeni ödev</button></div>' +
-          '<div class="table-wrap"><table class="table stack"><thead><tr><th>Ödev</th><th>Sınıf</th><th>Teslim</th><th>Tamamlayan</th><th></th></tr></thead><tbody>' +
-          (list.map(a => {
-            const total = store.students(a.class).length, done = Object.keys(a.done || {}).filter(id => { const u = store.user(id); return u && u.status === 'active' && u.class === a.class; }).length;
-            const d = relDue(a.due);
-            return '<tr><td data-label="Ödev"><b>' + esc(a.title) + '</b><br><small class="muted">' + esc(store.courseName(a.courseId)) + '</small></td><td data-label="Sınıf">' + esc(a.class) + '</td>' +
-              '<td data-label="Teslim">' + esc(fmtD(a.due)) + ' <span class="badge ' + d.cls + '">' + esc(d.text) + '</span></td>' +
-              '<td data-label="Tamamlayan"><div class="prog-cell"><div class="progress"><i style="width:' + pct(done, total) + '%"></i></div><span>' + done + '/' + total + '</span></div></td>' +
-              '<td class="actions"><button type="button" class="btn btn-sm btn-ghost" data-del="' + esc(a.id) + '" aria-label="' + esc(a.title) + ' ödevini sil">' + icon('trash', 14) + '</button></td></tr>';
-          }).join('') || '<tr><td colspan="5">' + emptyState('Henüz ödev eklemediniz.', 'book') + '</td></tr>') + '</tbody></table></div></div>';
-        const nb = $('#newA', el); if (nb) nb.addEventListener('click', openForm);
-        $$('[data-del]', el).forEach(b => b.addEventListener('click', async () => {
-          const ok = await confirmDialog({ title: 'Ödevi sil', message: 'Bu ödev öğrencilerin listesinden de kaldırılır. Devam edilsin mi?', confirmLabel: 'Sil', danger: true });
-          if (!ok) return;
-          const d = store.db(); d.assignments = d.assignments.filter(x => x.id !== b.dataset.del); store.save(); toast('Ödev silindi.', 'success'); draw();
-        }));
+    function dateText(value) {
+      return value ? fmtDT(value) : 'Tarih belirtilmemiş';
+    }
+
+    function historyItems(report) {
+      const history = Array.isArray(report.history)
+        ? report.history
+        : [];
+
+      if (!history.length) {
+        return `
+          <div class="empty-state">
+            Henüz işlem geçmişi bulunmuyor.
+          </div>
+        `;
       }
-      function openForm() {
-        const courses = myCourses();
-        const minDate = store.dateKey();
-        const html = '<form id="aForm" novalidate>' +
-          '<div class="field"><label for="aTitle">Ödev başlığı</label><input class="input" id="aTitle" maxlength="80"><span class="err" id="aTitleErr"></span></div>' +
-          '<div class="row"><div class="field"><label for="aCourse">Ders</label><select class="select" id="aCourse">' + courses.map(c => '<option value="' + esc(c.id) + '">' + esc(c.name) + '</option>').join('') + '</select></div>' +
-          '<div class="field"><label for="aClass">Sınıf</label><select class="select" id="aClass">' + cls.map(c => '<option>' + esc(c) + '</option>').join('') + '</select></div></div>' +
-          '<div class="field"><label for="aDue">Teslim tarihi</label><input class="input" type="date" id="aDue" min="' + minDate + '"><span class="err" id="aDueErr"></span></div>' +
-          '<label class="check-row"><input type="checkbox" id="aNotify" checked><span>Sınıfa bildirim gönder</span></label></form>';
-        modal({
-          title: 'Yeni ödev', html,
-          actions: [{ label: 'Vazgeç' }, {
-            label: 'Ödevi ekle', kind: 'primary',
-            onClick: (close, box) => {
-              const t = $('#aTitle', box), due = $('#aDue', box);
-              let ok = true;
-              if (t.value.trim().length < 3) { $('#aTitleErr', box).textContent = 'Başlık en az 3 karakter olmalı.'; t.setAttribute('aria-invalid', 'true'); ok = false; } else { $('#aTitleErr', box).textContent = ''; t.removeAttribute('aria-invalid'); }
-              if (!due.value || due.value < minDate) { $('#aDueErr', box).textContent = 'Bugün veya sonrası bir tarih seçin.'; due.setAttribute('aria-invalid', 'true'); ok = false; } else { $('#aDueErr', box).textContent = ''; due.removeAttribute('aria-invalid'); }
-              if (!ok) return false;
-              const courseId = $('#aCourse', box).value, klass = $('#aClass', box).value;
-              const dueDate = new Date(due.value + 'T23:59:00');
-              store.db().assignments.push({ id: store.uid('as'), title: t.value.trim(), courseId, class: klass, due: dueDate.toISOString(), createdBy: user.id, done: {} });
-              store.save();
-              if ($('#aNotify', box).checked) {
-                const n = store.createNotification({ title: 'Yeni ödev: ' + t.value.trim(), body: store.courseName(courseId) + ' dersi için yeni ödev eklendi. Teslim tarihi: ' + fmtD(dueDate.toISOString()) + '.', type: 'odev', audience: { kind: 'class', value: klass }, senderId: user.id });
-                store.sendNow(n);
-              }
-              toast('Ödev eklendi.', 'success'); draw();
+
+      return `
+        <div class="odes-timeline">
+          ${history.map(item => `
+            <div class="odes-timeline-item">
+              <div class="odes-timeline-dot"></div>
+              <div class="odes-timeline-content">
+                <strong>${esc(
+                  STATUS[item.status] ||
+                  item.action ||
+                  'Güncelleme'
+                )}</strong>
+
+                <div class="muted small">
+                  ${esc(dateText(item.createdAt || item.date))}
+                </div>
+
+                ${
+                  item.note
+                    ? `<p>${esc(item.note)}</p>`
+                    : ''
+                }
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function reportCard(report) {
+      return `
+        <article class="card odes-report-card">
+          <div class="card-body">
+
+            <div class="row align-center justify-between gap-2">
+              <div class="row align-center gap-2 wrap">
+                ${statusBadge(report.status)}
+                ${severityBadge(report.severity)}
+              </div>
+
+              <span class="muted small">
+                ${esc(dateText(report.createdAt))}
+              </span>
+            </div>
+
+            <h3 class="mt-3">
+              ${esc(report.title)}
+            </h3>
+
+            <p class="muted">
+              ${esc(
+                (report.description || '').length > 150
+                  ? report.description.slice(0, 150) + '...'
+                  : report.description || ''
+              )}
+            </p>
+
+            <div class="row wrap gap-2 small muted mt-2">
+              <span>
+                ${icon('map-pin', 14)}
+                ${esc(report.location || 'Konum belirtilmemiş')}
+              </span>
+
+              <span>
+                ${icon('tag', 14)}
+                ${esc(categoryName(report.category))}
+              </span>
+            </div>
+
+            <div class="row align-center justify-between mt-3">
+              <span class="muted small">
+                ${report.anonymous
+                  ? 'Anonim bildirim'
+                  : 'Kimliği görülebilen bildirim'}
+              </span>
+
+              <button
+                class="btn btn-primary btn-sm"
+                type="button"
+                data-open-report="${esc(report.id)}">
+                İncele
+                ${icon('arrow-right', 15)}
+              </button>
+            </div>
+
+          </div>
+        </article>
+      `;
+    }
+
+    function openReport(reportId) {
+      // Yalnızca öğretmenin erişebildiği raporlar arasından bul.
+      // Ham veriyi getiren reportById/allReports kullanılmaz.
+      const report = reports().find(
+        item => String(item.id) === String(reportId)
+      );
+
+      if (!report) {
+        toast('Bu bildirime erişim izniniz bulunmuyor.', 'error');
+        return;
+      }
+
+      const anonymous = report.anonymous === true;
+
+      const html = `
+        <div class="odes-report-detail">
+
+          <div class="row wrap gap-2 mb-3">
+            ${statusBadge(report.status)}
+            ${severityBadge(report.severity)}
+          </div>
+
+          <h2>${esc(report.title)}</h2>
+
+          <div class="muted small mb-3">
+            ${esc(dateText(report.createdAt))}
+          </div>
+
+          <div class="detail-section">
+            <h4>Bildirim açıklaması</h4>
+            <p>${esc(report.description || 'Açıklama bulunmuyor.')}</p>
+          </div>
+
+          <div class="detail-grid mt-3">
+            <div class="detail-item">
+              <span class="muted small">Bildirim türü</span>
+              <strong>${esc(categoryName(report.category))}</strong>
+            </div>
+
+            <div class="detail-item">
+              <span class="muted small">Konum</span>
+              <strong>${esc(report.location || 'Belirtilmemiş')}</strong>
+            </div>
+
+            <div class="detail-item">
+              <span class="muted small">Sıklık</span>
+              <strong>${esc(FREQUENCY[report.frequency] || 'Belirtilmemiş')}</strong>
+            </div>
+
+            <div class="detail-item">
+              <span class="muted small">Bildirim yapan</span>
+              <strong>
+                ${anonymous
+                  ? 'Anonim öğrenci'
+                  : esc(report.studentName || 'Öğrenci')}
+              </strong>
+            </div>
+
+            ${
+              !anonymous && report.class
+                ? `
+                  <div class="detail-item">
+                    <span class="muted small">Sınıf</span>
+                    <strong>${esc(report.class)}</strong>
+                  </div>
+                `
+                : ''
             }
-          }]
+          </div>
+
+          <div class="detail-section mt-4">
+            <h4>İşlem geçmişi</h4>
+            ${historyItems(report)}
+          </div>
+
+          <div class="detail-section mt-4">
+            <h4>Bildirim durumunu güncelle</h4>
+
+            <label class="form-label" for="odesReportStatus">
+              Yeni durum
+            </label>
+
+            <select id="odesReportStatus" class="form-control">
+              ${Object.entries(STATUS).map(([key, value]) => `
+                <option
+                  value="${key}"
+                  ${report.status === key ? 'selected' : ''}>
+                  ${esc(value)}
+                </option>
+              `).join('')}
+            </select>
+
+            <label class="form-label mt-3" for="odesReportNote">
+              İşlem notu
+            </label>
+
+            <textarea
+              id="odesReportNote"
+              class="form-control"
+              rows="3"
+              placeholder="Yapılan işlem veya değerlendirme hakkında not..."></textarea>
+
+          </div>
+        </div>
+      `;
+
+      modal({
+        title: 'Bildirim Detayı',
+        html,
+        actions: [
+          {
+            label: 'Kaydet',
+            className: 'btn-primary',
+            onClick: function (close, box) {
+              const statusEl = $('#odesReportStatus', box);
+              const noteEl = $('#odesReportNote', box);
+
+              if (!statusEl) return false;
+
+              const newStatus = statusEl.value;
+              const note = noteEl ? noteEl.value.trim() : '';
+
+              const result = store.updateReportStatus(
+                report.id,
+                newStatus,
+                user.id,
+                note
+              );
+
+              if (!result || !result.ok) {
+                toast(
+                  result?.error || 'Durum güncellenemedi.',
+                  'error'
+                );
+                return false;
+              }
+
+              toast('Bildirim durumu güncellendi.', 'success');
+
+              if (typeof close === 'function') close();
+
+              drawReports();
+              drawOverview();
+              return true;
+            }
+          }
+        ]
+      });
+    }
+
+    function drawOverview() {
+      const el = $('#teacherOverview', root);
+      if (!el) return;
+
+      const list = reports();
+
+      const counts = {
+        total: list.length,
+        new: list.filter(r => r.status === 'new').length,
+        reviewing: list.filter(r => r.status === 'reviewing').length,
+        resolved: list.filter(r => r.status === 'resolved').length,
+        urgent: list.filter(
+          r => r.severity === 'critical' || r.severity === 'high'
+        ).length
+      };
+
+      const recent = [...list]
+        .sort((a, b) => {
+          return new Date(b.createdAt || 0) -
+            new Date(a.createdAt || 0);
+        })
+        .slice(0, 5);
+
+      el.innerHTML = `
+        <div class="page-heading">
+          <div>
+            <h2>Güvenlik Özeti</h2>
+            <p class="muted">
+              Erişebildiğiniz okul güvenliği bildirimlerinin genel durumu.
+            </p>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          ${statCard(
+            'Erişilebilir Bildirim',
+            counts.total,
+            'clipboard',
+            'primary'
+          )}
+
+          ${statCard(
+            'Yeni Bildirim',
+            counts.new,
+            'alert-circle',
+            'info'
+          )}
+
+          ${statCard(
+            'İncelenen',
+            counts.reviewing,
+            'clock',
+            'warning'
+          )}
+
+          ${statCard(
+            'Çözülen',
+            counts.resolved,
+            'check-circle',
+            'success'
+          )}
+        </div>
+
+        <div class="card mt-4">
+          <div class="card-header">
+            <h3>Öncelikli Bildirimler</h3>
+            <span class="badge b-danger">${counts.urgent}</span>
+          </div>
+
+          <div class="card-body">
+            ${
+              counts.urgent
+                ? `<p>
+                    Yüksek veya kritik önem düzeyinde
+                    ${counts.urgent} bildirim bulunuyor.
+                  </p>`
+                : `<p class="muted">
+                    Şu anda yüksek veya kritik önem düzeyinde
+                    erişilebilir bildirim bulunmuyor.
+                  </p>`
+            }
+          </div>
+        </div>
+
+        ${
+          !Array.isArray(user.classes) || !user.classes.length
+            ? `
+              <div class="notice notice-info mt-3">
+                <strong>Sınıf görevlendirmesi bulunmuyor.</strong>
+                Şu anda anonim bildirimleri görüntüleyebilirsiniz.
+                Sınıf görevlendirmeniz yapıldığında ilgili sınıfların
+                kimlik bilgisi içeren bildirimlerine de erişebilirsiniz.
+              </div>
+            `
+            : ''
+        }
+
+        <div class="card mt-4">
+          <div class="card-header">
+            <h3>Son Bildirimler</h3>
+            <button
+              class="btn btn-sm btn-ghost"
+              type="button"
+              data-go-reports>
+              Tümünü Gör
+            </button>
+          </div>
+
+          <div class="card-body">
+            ${
+              recent.length
+                ? recent.map(reportCard).join('')
+                : emptyState(
+                    'Henüz bildirim bulunmuyor.',
+                    'inbox'
+                  )
+            }
+          </div>
+        </div>
+      `;
+
+      bindReportButtons(el);
+    }
+
+    function drawReports() {
+      const el = $('#teacherReports', root);
+      if (!el) return;
+
+      let list = reports();
+
+      if (searchText) {
+        const q = searchText.toLocaleLowerCase('tr');
+
+        list = list.filter(report => {
+          return [
+            report.title,
+            report.description,
+            report.location,
+            report.studentName,
+            report.class
+          ].some(value =>
+            String(value || '')
+              .toLocaleLowerCase('tr')
+              .includes(q)
+          );
         });
       }
-      if (!cls.length) { el.innerHTML = noClassNotice(); return; }
-      draw();
+
+      if (statusFilter !== 'all') {
+        list = list.filter(r => r.status === statusFilter);
+      }
+
+      if (severityFilter !== 'all') {
+        list = list.filter(r => r.severity === severityFilter);
+      }
+
+      if (categoryFilter !== 'all') {
+        list = list.filter(r => r.category === categoryFilter);
+      }
+
+      list.sort((a, b) =>
+        new Date(b.createdAt || 0) -
+        new Date(a.createdAt || 0)
+      );
+
+      el.innerHTML = `
+        <div class="page-heading">
+          <div>
+            <h2>Güvenlik Bildirimleri</h2>
+            <p class="muted">
+              Yetkiniz dahilindeki bildirimleri inceleyin ve
+              durumlarını güncelleyin.
+            </p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+
+            <div class="form-group">
+              <input
+                id="odesReportSearch"
+                class="form-control"
+                type="search"
+                placeholder="Bildirimlerde ara..."
+                value="${esc(searchText)}">
+            </div>
+
+            <div class="filter-grid">
+              <select id="odesStatusFilter" class="form-control">
+                <option value="all">Tüm durumlar</option>
+                ${Object.entries(STATUS).map(([key, value]) => `
+                  <option
+                    value="${key}"
+                    ${statusFilter === key ? 'selected' : ''}>
+                    ${esc(value)}
+                  </option>
+                `).join('')}
+              </select>
+
+              <select id="odesSeverityFilter" class="form-control">
+                <option value="all">Tüm önem düzeyleri</option>
+                ${Object.entries(SEVERITY).map(([key, value]) => `
+                  <option
+                    value="${key}"
+                    ${severityFilter === key ? 'selected' : ''}>
+                    ${esc(value)}
+                  </option>
+                `).join('')}
+              </select>
+
+              <select id="odesCategoryFilter" class="form-control">
+                <option value="all">Tüm bildirim türleri</option>
+                ${Object.entries(CATEGORY).map(([key, value]) => `
+                  <option
+                    value="${key}"
+                    ${categoryFilter === key ? 'selected' : ''}>
+                    ${esc(value)}
+                  </option>
+                `).join('')}
+              </select>
+            </div>
+
+            <div class="muted small mt-3">
+              ${list.length} bildirim listeleniyor.
+            </div>
+
+          </div>
+        </div>
+
+        <div class="odes-report-list mt-3">
+          ${
+            list.length
+              ? list.map(reportCard).join('')
+              : emptyState(
+                  'Filtrelere uygun bildirim bulunamadı.',
+                  'search'
+                )
+          }
+        </div>
+      `;
+
+      const search = $('#odesReportSearch', el);
+      const status = $('#odesStatusFilter', el);
+      const severity = $('#odesSeverityFilter', el);
+      const category = $('#odesCategoryFilter', el);
+
+      if (search) {
+        search.addEventListener('input', function () {
+          searchText = this.value;
+          drawReports();
+
+          const input = $('#odesReportSearch', el);
+          if (input) {
+            input.focus();
+            input.setSelectionRange(
+              input.value.length,
+              input.value.length
+            );
+          }
+        });
+      }
+
+      if (status) {
+        status.addEventListener('change', function () {
+          statusFilter = this.value;
+          drawReports();
+        });
+      }
+
+      if (severity) {
+        severity.addEventListener('change', function () {
+          severityFilter = this.value;
+          drawReports();
+        });
+      }
+
+      if (category) {
+        category.addEventListener('change', function () {
+          categoryFilter = this.value;
+          drawReports();
+        });
+      }
+
+      bindReportButtons(el);
+    }
+
+    function bindReportButtons(container) {
+      $$('[data-open-report]', container).forEach(button => {
+        button.addEventListener('click', function () {
+          openReport(this.dataset.openReport);
+        });
+      });
+
+      $$('[data-go-reports]', container).forEach(button => {
+        button.addEventListener('click', function () {
+          location.hash = '#reports';
+        });
+      });
+    }
+
+    function overview(rootEl) {
+      rootEl.innerHTML = `
+        <div id="teacherOverview"></div>
+      `;
+
+      drawOverview();
+    }
+
+    function reportPage(rootEl) {
+      rootEl.innerHTML = `
+        <div id="teacherReports"></div>
+      `;
+
+      drawReports();
+    }
+
+    function inboxPage(rootEl) {
+      renderInbox(rootEl, user);
     }
 
     sections(root, {
-      overview: { title: 'Genel bakış', render: overview },
-      classes: { title: 'Sınıflarım', render: classes },
-      attendance: { title: 'Yoklama', sub: 'Sınıf ve tarih seçip yoklamayı kaydedin.', render: attendance },
-      assignments: { title: 'Ödevler', render: assignments },
-      inbox: { title: 'Gelen bildirimler', render: (el) => renderInbox(el, user) }
+      overview,
+      reports: reportPage,
+      inbox: inboxPage
     }, 'overview');
   };
+
 })();
