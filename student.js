@@ -63,6 +63,13 @@
     closed: 'b-neutral'
   };
 
+  const SEVERITY_CLASS = {
+    low: 'b-neutral',
+    medium: 'b-info',
+    high: 'b-warning',
+    critical: 'b-danger'
+  };
+
   ODES.pages.student = function (root, user) {
 
     /* =====================================
@@ -70,7 +77,11 @@
     ===================================== */
 
     function getReports() {
-      return store.reportsForStudent(user.id) || [];
+      return (store.reportsForStudent(user.id) || [])
+        .slice()
+        .sort((a, b) =>
+          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+        );
     }
 
     function statusBadge(status) {
@@ -80,12 +91,49 @@
         '</span>';
     }
 
+    function severityBadge(severity) {
+      return '<span class="badge ' +
+        (SEVERITY_CLASS[severity] || 'b-neutral') + '">' +
+        esc(REPORT_SEVERITY[severity] || 'Belirtilmedi') +
+        '</span>';
+    }
+
     function categoryName(category) {
       return REPORT_CATEGORY[category] || 'Diğer';
     }
 
-    function reportCard(report) {
+    function historyHTML(report) {
       const history = (report.history || []).slice().reverse();
+
+      if (!history.length) {
+        return '<p class="muted small">Henüz işlem yapılmamış.</p>';
+      }
+
+      return '<div class="list">' +
+        history.map(h =>
+          '<div class="li">' +
+            '<span class="ico tone-info">' +
+              icon('history', 17) +
+            '</span>' +
+            '<div class="grow">' +
+              '<b>' +
+                esc(REPORT_STATUS[h.status] || 'Güncelleme') +
+              '</b>' +
+              '<small class="muted">' +
+                esc(h.actorName || 'ODES') +
+                ' · ' + esc(fmtDT(h.at)) +
+              '</small>' +
+              (h.note
+                ? '<small>' + esc(h.note) + '</small>'
+                : '') +
+            '</div>' +
+          '</div>'
+        ).join('') +
+      '</div>';
+    }
+
+    function reportCard(report) {
+      const history = report.history || [];
 
       return '<article class="card" style="margin-top:12px">' +
 
@@ -103,21 +151,30 @@
         '<p>' + esc(report.description) + '</p>' +
 
         '<div class="grid g2" style="margin-top:12px">' +
+
           '<div class="muted small">' +
-            '<b>Konum:</b> ' + esc(report.location || 'Belirtilmedi') +
+            '<b>Konum:</b> ' +
+            esc(report.location || 'Belirtilmedi') +
           '</div>' +
+
           '<div class="muted small">' +
             '<b>Önem:</b> ' +
-            esc(REPORT_SEVERITY[report.severity] || 'Belirtilmedi') +
+            severityBadge(report.severity) +
           '</div>' +
+
           '<div class="muted small">' +
             '<b>Sıklık:</b> ' +
             esc(REPORT_FREQUENCY[report.frequency] || 'Belirtilmedi') +
           '</div>' +
+
           '<div class="muted small">' +
             '<b>Bildirim türü:</b> ' +
-            (report.anonymous ? 'Anonim' : 'Kimlikli') +
+            '<span class="badge ' +
+              (report.anonymous ? 'b-info' : 'b-neutral') + '">' +
+              (report.anonymous ? 'Anonim' : 'Kimlikli') +
+            '</span>' +
           '</div>' +
+
         '</div>' +
 
         '<div class="muted small" style="margin-top:10px">' +
@@ -126,23 +183,8 @@
 
         '<details style="margin-top:12px">' +
           '<summary>İşlem geçmişi (' + history.length + ')</summary>' +
-          '<div class="list" style="margin-top:10px">' +
-            (history.length
-              ? history.map(h =>
-                  '<div class="li">' +
-                    '<div class="grow">' +
-                      '<b>' +
-                        esc(REPORT_STATUS[h.status] || 'Güncelleme') +
-                      '</b>' +
-                      '<small class="muted">' +
-                        esc(h.actorName || 'ODES') +
-                        ' · ' + esc(fmtDT(h.at)) +
-                      '</small>' +
-                      '<small>' + esc(h.note || '') + '</small>' +
-                    '</div>' +
-                  '</div>'
-                ).join('')
-              : '<p class="muted small">Henüz işlem yapılmamış.</p>') +
+          '<div style="margin-top:12px">' +
+            historyHTML(report) +
           '</div>' +
         '</details>' +
 
@@ -158,6 +200,7 @@
       const unread = inbox.filter(x => !x.read).length;
 
       const reports = getReports();
+
       const active = reports.filter(r =>
         r.status === 'new' || r.status === 'reviewing'
       ).length;
@@ -176,13 +219,17 @@
               '<h2>Merhaba, ' +
                 esc((user.name || 'Öğrenci').split(' ')[0]) +
               '</h2>' +
-              '<p>' + esc(user.class || '') +
+              '<p>' +
+                esc(user.class || '') +
                 ' sınıfı · ' + esc(fmtLong()) +
               '</p>' +
             '</div>' +
+
             '<a class="btn btn-light" href="#inbox">' +
               icon('bell', 16) +
-              (unread ? unread + ' okunmamış bildirim' : 'Bildirimlerim') +
+              (unread
+                ? unread + ' okunmamış bildirim'
+                : 'Bildirimlerim') +
             '</a>' +
           '</div>' +
 
@@ -298,7 +345,9 @@
                     '</small>' +
                   '</div>' +
                 '</div>'
-              ).join('') || emptyState('Henüz bildirim yok.', 'bell')) +
+              ).join('') ||
+                emptyState('Henüz bildirim yok.', 'bell')
+              ) +
 
             '</div>' +
 
@@ -319,6 +368,7 @@
         '<div class="stack-v">' +
 
           '<div class="card">' +
+
             '<div class="card-h">' +
               '<div>' +
                 '<h3>Yeni sorun bildirimi</h3>' +
@@ -370,7 +420,7 @@
                   '<option value="critical">Kritik</option>' +
                 '</select>' +
                 '<small class="muted">' +
-                  'Sorunun okul güvenliği açısından ne kadar önemli olduğunu belirt.' +
+                  'Sorunun okul güvenliği açısından önemini belirt.' +
                 '</small>' +
               '</div>' +
 
@@ -393,20 +443,21 @@
 
               '<div class="card" style="background:var(--pale);border:1px solid var(--border)">' +
                 '<h3>Gizlilik tercihi</h3>' +
+
                 '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">' +
                   '<input type="checkbox" id="reportAnonymous" style="margin-top:4px">' +
                   '<span>' +
                     '<b>Anonim olarak bildirmek istiyorum</b>' +
                     '<small class="muted" style="display:block">' +
-                      'Bu seçeneği işaretlersen bildirim diğer kullanıcılara ' +
-                      'anonim olarak gösterilir. Gönderenin kimliğini yalnızca ' +
-                      'yöneticiler görüntüleyebilir.' +
+                      'Anonim bildirimlerde gönderenin kimliği diğer ' +
+                      'kullanıcılara gösterilmez. Demo sisteminde ' +
+                      'yönetici panelinde görüntülenebilir.' +
                     '</small>' +
                   '</span>' +
                 '</label>' +
               '</div>' +
 
-              '<div class="card" style="background:var(--surface)">' +
+              '<div class="card">' +
                 '<p class="muted small">' +
                   '<b>Önemli:</b> Bildiriminde şifre, telefon numarası, ' +
                   'adres veya gereksiz kişisel bilgiler paylaşma. ' +
@@ -416,13 +467,16 @@
               '</div>' +
 
               '<div class="row" style="justify-content:space-between;flex-wrap:wrap">' +
+
                 '<button type="button" class="btn btn-ghost" id="cancelReportBtn">' +
                   'Vazgeç' +
                 '</button>' +
+
                 '<button type="submit" class="btn btn-primary" id="submitReportBtn">' +
                   icon('send', 16) +
                   ' Bildirimi gönder' +
                 '</button>' +
+
               '</div>' +
 
             '</form>' +
@@ -441,23 +495,25 @@
 
         const result = store.createReport({
           studentId: user.id,
-          title: $('#reportTitle', el).value,
+          title: $('#reportTitle', el).value.trim(),
           category: $('#reportCategory', el).value,
           location: $('#reportLocation', el).value,
           severity: $('#reportSeverity', el).value,
           frequency: $('#reportFrequency', el).value,
-          description: $('#reportDescription', el).value,
+          description: $('#reportDescription', el).value.trim(),
           anonymous: $('#reportAnonymous', el).checked
         });
 
         if (!result || !result.ok) {
           button.disabled = false;
+
           toast(
             result && result.error
               ? result.error
               : 'Bildirim oluşturulamadı.',
             'error'
           );
+
           return;
         }
 
@@ -517,6 +573,7 @@
           '</div>' +
 
           '<div class="card">' +
+
             '<div class="card-h">' +
               '<div>' +
                 '<h3>Bildirimlerim</h3>' +
@@ -524,39 +581,82 @@
                   'Oluşturduğun bildirimlerin durumunu ve işlem geçmişini takip et.' +
                 '</p>' +
               '</div>' +
+
               '<button type="button" class="btn btn-primary" id="newReportBtn">' +
                 icon('plus', 16) +
                 ' Yeni bildirim' +
               '</button>' +
             '</div>' +
 
-            '<div id="reportList"></div>' +
-          '</div>' +
+            '<div class="toolbar" style="margin:14px 0">' +
 
+              '<div class="grow">' +
+                '<label for="reportSearch">Bildirim ara</label>' +
+                '<input class="input" id="reportSearch" type="search" ' +
+                  'placeholder="Başlık veya açıklama...">' +
+              '</div>' +
+
+              '<div>' +
+                '<label for="reportStatusFilter">Durum</label>' +
+                '<select class="input" id="reportStatusFilter">' +
+                  '<option value="all">Tüm durumlar</option>' +
+                  '<option value="new">Yeni</option>' +
+                  '<option value="reviewing">İnceleniyor</option>' +
+                  '<option value="resolved">Çözüldü</option>' +
+                  '<option value="closed">Kapatıldı</option>' +
+                '</select>' +
+              '</div>' +
+
+            '</div>' +
+
+            '<div id="reportList"></div>' +
+
+          '</div>' +
         '</div>';
 
       $('#newReportBtn', el).addEventListener('click', () => {
         reportCreate(el);
       });
 
+      const search = $('#reportSearch', el);
+      const statusFilter = $('#reportStatusFilter', el);
       const list = $('#reportList', el);
 
-      if (!items.length) {
-        list.innerHTML =
-          emptyState(
-            'Henüz bir sorun bildirimi oluşturmadın.',
+      function drawList() {
+        const q = search.value.trim().toLocaleLowerCase('tr-TR');
+        const status = statusFilter.value;
+
+        const filtered = items.filter(report => {
+          const matchesSearch =
+            !q ||
+            String(report.title || '').toLocaleLowerCase('tr-TR').includes(q) ||
+            String(report.description || '').toLocaleLowerCase('tr-TR').includes(q);
+
+          const matchesStatus =
+            status === 'all' || report.status === status;
+
+          return matchesSearch && matchesStatus;
+        });
+
+        if (!filtered.length) {
+          list.innerHTML = emptyState(
+            items.length
+              ? 'Aramana veya seçtiğin duruma uygun bildirim bulunamadı.'
+              : 'Henüz bir sorun bildirimi oluşturmadın.',
             'clipboard-list'
-          ) +
-          '<p class="muted small">' +
-            'Okul ortamında karşılaştığın bir sorunu bildirmek için ' +
-            '"Yeni bildirim" butonunu kullanabilirsin.' +
-          '</p>';
-        return;
+          );
+          return;
+        }
+
+        list.innerHTML = '<div class="stack-v">' +
+          filtered.map(reportCard).join('') +
+        '</div>';
       }
 
-      list.innerHTML = '<div class="stack-v">' +
-        items.map(reportCard).join('') +
-      '</div>';
+      search.addEventListener('input', drawList);
+      statusFilter.addEventListener('change', drawList);
+
+      drawList();
     }
 
     /* =====================================
@@ -572,6 +672,7 @@
     ===================================== */
 
     sections(root, {
+
       overview: {
         title: 'Genel bakış',
         sub: 'Okul güvenliği ve bildirim merkezi.',
@@ -598,4 +699,5 @@
 
     }, 'overview');
   };
+
 })();
