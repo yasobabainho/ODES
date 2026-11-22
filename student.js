@@ -8,11 +8,11 @@
   'use strict';
 
   const {
-    $, $$, esc, icon, store, sections, statCard,
+    $, esc, icon, store, sections, statCard,
     emptyState, fmtDT, fmtLong, renderInbox, toast
   } = ODES;
 
-  const REPORT_STATUS = {
+  const REPORT_STATUS = ODES.REPORT_STATUSES || {
     new: 'Yeni',
     reviewing: 'İnceleniyor',
     resolved: 'Çözüldü',
@@ -27,34 +27,21 @@
     other: 'Diğer'
   };
 
-  const REPORT_SEVERITY = {
+  const REPORT_SEVERITY = ODES.REPORT_SEVERITIES || {
     low: 'Düşük',
     medium: 'Orta',
     high: 'Yüksek',
     critical: 'Kritik'
   };
 
-  const REPORT_FREQUENCY = {
+  const REPORT_FREQUENCY = ODES.REPORT_FREQUENCIES || {
     once: 'İlk kez',
     sometimes: 'Ara sıra',
     often: 'Sık sık',
     constant: 'Sürekli'
   };
 
-  const SCHOOL_LOCATIONS = ODES.SCHOOL_LOCATIONS || [
-    'Giriş ve güvenlik noktası',
-    'Derslikler',
-    'Koridorlar',
-    'Merdivenler',
-    'Tuvaletler',
-    'Laboratuvarlar',
-    'Kütüphane',
-    'Kantin',
-    'Spor salonu',
-    'Öğretmenler odası',
-    'İdari bölümler',
-    'Diğer'
-  ];
+  const SCHOOL_LOCATIONS = ODES.SCHOOL_LOCATIONS || [];
 
   const STATUS_CLASS = {
     new: 'b-info',
@@ -63,25 +50,28 @@
     closed: 'b-neutral'
   };
 
-  const SEVERITY_CLASS = {
-    low: 'b-neutral',
-    medium: 'b-info',
-    high: 'b-warning',
-    critical: 'b-danger'
-  };
-
   ODES.pages.student = function (root, user) {
 
     /* =====================================
        ORTAK YARDIMCILAR
     ===================================== */
 
-    function getReports() {
-      return (store.reportsForStudent(user.id) || [])
-        .slice()
-        .sort((a, b) =>
-          new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
-        );
+    // Yalnızca öğrencinin kendi bildirimleri.
+    function getMyReports() {
+      return store.reportsForStudent(user.id) || [];
+    }
+
+    // Öğrencinin kendi bildirimleri + tüm anonim bildirimler.
+    function getVisibleReports() {
+      if (typeof store.reportsVisibleTo === 'function') {
+        return store.reportsVisibleTo(user.id) || [];
+      }
+
+      return getMyReports();
+    }
+
+    function isMyReport(report) {
+      return getMyReports().some(r => r.id === report.id);
     }
 
     function statusBadge(status) {
@@ -91,49 +81,13 @@
         '</span>';
     }
 
-    function severityBadge(severity) {
-      return '<span class="badge ' +
-        (SEVERITY_CLASS[severity] || 'b-neutral') + '">' +
-        esc(REPORT_SEVERITY[severity] || 'Belirtilmedi') +
-        '</span>';
-    }
-
     function categoryName(category) {
       return REPORT_CATEGORY[category] || 'Diğer';
     }
 
-    function historyHTML(report) {
-      const history = (report.history || []).slice().reverse();
-
-      if (!history.length) {
-        return '<p class="muted small">Henüz işlem yapılmamış.</p>';
-      }
-
-      return '<div class="list">' +
-        history.map(h =>
-          '<div class="li">' +
-            '<span class="ico tone-info">' +
-              icon('history', 17) +
-            '</span>' +
-            '<div class="grow">' +
-              '<b>' +
-                esc(REPORT_STATUS[h.status] || 'Güncelleme') +
-              '</b>' +
-              '<small class="muted">' +
-                esc(h.actorName || 'ODES') +
-                ' · ' + esc(fmtDT(h.at)) +
-              '</small>' +
-              (h.note
-                ? '<small>' + esc(h.note) + '</small>'
-                : '') +
-            '</div>' +
-          '</div>'
-        ).join('') +
-      '</div>';
-    }
-
     function reportCard(report) {
-      const history = report.history || [];
+      const history = (report.history || []).slice().reverse();
+      const mine = isMyReport(report);
 
       return '<article class="card" style="margin-top:12px">' +
 
@@ -148,6 +102,13 @@
           statusBadge(report.status) +
         '</div>' +
 
+        '<div style="margin:8px 0">' +
+          (mine
+            ? '<span class="badge b-primary">Senin bildirimin</span>'
+            : '<span class="badge b-neutral">Anonim bildirim</span>'
+          ) +
+        '</div>' +
+
         '<p>' + esc(report.description) + '</p>' +
 
         '<div class="grid g2" style="margin-top:12px">' +
@@ -159,7 +120,7 @@
 
           '<div class="muted small">' +
             '<b>Önem:</b> ' +
-            severityBadge(report.severity) +
+            esc(REPORT_SEVERITY[report.severity] || 'Belirtilmedi') +
           '</div>' +
 
           '<div class="muted small">' +
@@ -169,10 +130,7 @@
 
           '<div class="muted small">' +
             '<b>Bildirim türü:</b> ' +
-            '<span class="badge ' +
-              (report.anonymous ? 'b-info' : 'b-neutral') + '">' +
-              (report.anonymous ? 'Anonim' : 'Kimlikli') +
-            '</span>' +
+            (report.anonymous ? 'Anonim' : 'Kimlikli') +
           '</div>' +
 
         '</div>' +
@@ -183,8 +141,30 @@
 
         '<details style="margin-top:12px">' +
           '<summary>İşlem geçmişi (' + history.length + ')</summary>' +
-          '<div style="margin-top:12px">' +
-            historyHTML(report) +
+
+          '<div class="list" style="margin-top:10px">' +
+
+            (history.length
+              ? history.map(h =>
+                  '<div class="li">' +
+                    '<div class="grow">' +
+                      '<b>' +
+                        esc(REPORT_STATUS[h.status] || 'Güncelleme') +
+                      '</b>' +
+
+                      '<small class="muted">' +
+                        esc(h.actorName || 'ODES') +
+                        ' · ' + esc(fmtDT(h.at)) +
+                      '</small>' +
+
+                      '<small>' + esc(h.note || '') + '</small>' +
+                    '</div>' +
+                  '</div>'
+                ).join('')
+
+              : '<p class="muted small">Henüz işlem yapılmamış.</p>'
+            ) +
+
           '</div>' +
         '</details>' +
 
@@ -199,7 +179,7 @@
       const inbox = store.inboxFor(user.id) || [];
       const unread = inbox.filter(x => !x.read).length;
 
-      const reports = getReports();
+      const reports = getMyReports();
 
       const active = reports.filter(r =>
         r.status === 'new' || r.status === 'reviewing'
@@ -219,6 +199,7 @@
               '<h2>Merhaba, ' +
                 esc((user.name || 'Öğrenci').split(' ')[0]) +
               '</h2>' +
+
               '<p>' +
                 esc(user.class || '') +
                 ' sınıfı · ' + esc(fmtLong()) +
@@ -229,14 +210,15 @@
               icon('bell', 16) +
               (unread
                 ? unread + ' okunmamış bildirim'
-                : 'Bildirimlerim') +
+                : 'Bildirimlerim'
+              ) +
             '</a>' +
           '</div>' +
 
           '<div class="grid g4">' +
 
             statCard({
-              label: 'Toplam bildirimim',
+              label: 'Bildirimlerim',
               value: reports.length,
               icon: 'clipboard-list',
               tone: 'primary',
@@ -274,6 +256,7 @@
             '<div class="stack-v">' +
 
               '<div class="card">' +
+
                 '<div class="card-h">' +
                   '<div>' +
                     '<h3>Okul güvenliği</h3>' +
@@ -281,6 +264,7 @@
                       'Karşılaştığın sorunları güvenli okul ortamı için bildir.' +
                     '</p>' +
                   '</div>' +
+
                   icon('shield-check', 22) +
                 '</div>' +
 
@@ -294,9 +278,11 @@
                   icon('plus', 16) +
                   ' Sorun bildir' +
                 '</button>' +
+
               '</div>' +
 
               '<div class="card">' +
+
                 '<div class="card-h">' +
                   '<h3>Son bildirimlerim</h3>' +
                   '<a href="#reports">Tümünü gör</a>' +
@@ -317,16 +303,19 @@
                         '</div>'
                       ).join('') +
                     '</div>'
+
                   : emptyState(
                       'Henüz bir sorun bildirimi oluşturmadın.',
                       'clipboard-list'
                     )
                 ) +
+
               '</div>' +
 
             '</div>' +
 
             '<div class="card">' +
+
               '<div class="card-h">' +
                 '<h3>Son okul bildirimleri</h3>' +
                 '<a href="#inbox">Tümünü gör</a>' +
@@ -335,19 +324,21 @@
               (inbox.slice(0, 5).map(x =>
                 '<div class="li">' +
                   '<div class="grow">' +
+
                     (x.read
                       ? ''
                       : '<span class="badge b-primary" style="margin-right:6px">Yeni</span>'
                     ) +
+
                     '<b>' + esc(x.n.title) + '</b>' +
+
                     '<small class="muted">' +
                       esc(fmtDT(x.n.sentAt)) +
                     '</small>' +
+
                   '</div>' +
                 '</div>'
-              ).join('') ||
-                emptyState('Henüz bildirim yok.', 'bell')
-              ) +
+              ).join('') || emptyState('Henüz bildirim yok.', 'bell')) +
 
             '</div>' +
 
@@ -376,6 +367,7 @@
                   'Okul ortamındaki riskleri ve sorunları bize ilet.' +
                 '</p>' +
               '</div>' +
+
               '<span class="badge b-primary">Öğrenci</span>' +
             '</div>' +
 
@@ -391,41 +383,49 @@
               '<div>' +
                 '<label for="reportCategory">Sorun kategorisi</label>' +
                 '<select id="reportCategory" class="input" required>' +
+
                   Object.keys(REPORT_CATEGORY).map(key =>
                     '<option value="' + esc(key) + '">' +
                       esc(REPORT_CATEGORY[key]) +
                     '</option>'
                   ).join('') +
+
                 '</select>' +
               '</div>' +
 
               '<div>' +
                 '<label for="reportLocation">Sorunun bulunduğu konum</label>' +
                 '<select id="reportLocation" class="input" required>' +
+
                   '<option value="">Konum seç</option>' +
+
                   SCHOOL_LOCATIONS.map(location =>
                     '<option value="' + esc(location) + '">' +
                       esc(location) +
                     '</option>'
                   ).join('') +
+
                 '</select>' +
               '</div>' +
 
               '<div>' +
                 '<label for="reportSeverity">Sorunun önem derecesi</label>' +
+
                 '<select id="reportSeverity" class="input" required>' +
                   '<option value="low">Düşük</option>' +
                   '<option value="medium" selected>Orta</option>' +
                   '<option value="high">Yüksek</option>' +
                   '<option value="critical">Kritik</option>' +
                 '</select>' +
+
                 '<small class="muted">' +
-                  'Sorunun okul güvenliği açısından önemini belirt.' +
+                  'Sorunun okul güvenliği açısından ne kadar önemli olduğunu belirt.' +
                 '</small>' +
               '</div>' +
 
               '<div>' +
                 '<label for="reportFrequency">Ne sıklıkla yaşanıyor?</label>' +
+
                 '<select id="reportFrequency" class="input" required>' +
                   '<option value="once">İlk kez</option>' +
                   '<option value="sometimes" selected>Ara sıra</option>' +
@@ -436,28 +436,36 @@
 
               '<div>' +
                 '<label for="reportDescription">Sorunun açıklaması</label>' +
+
                 '<textarea id="reportDescription" class="input" rows="6" ' +
                   'maxlength="2000" required ' +
                   'placeholder="Sorunun ne olduğunu, nerede ve nasıl yaşandığını anlat..."></textarea>' +
               '</div>' +
 
               '<div class="card" style="background:var(--pale);border:1px solid var(--border)">' +
+
                 '<h3>Gizlilik tercihi</h3>' +
 
                 '<label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">' +
+
                   '<input type="checkbox" id="reportAnonymous" style="margin-top:4px">' +
+
                   '<span>' +
                     '<b>Anonim olarak bildirmek istiyorum</b>' +
+
                     '<small class="muted" style="display:block">' +
-                      'Anonim bildirimlerde gönderenin kimliği diğer ' +
-                      'kullanıcılara gösterilmez. Demo sisteminde ' +
-                      'yönetici panelinde görüntülenebilir.' +
+                      'Anonim bildirimler diğer kullanıcılar tarafından ' +
+                      'kimlik bilgileri olmadan görüntülenebilir. ' +
+                      'Bu prototipte gönderenin kimliğini yalnızca yönetici ' +
+                      'panelinde görüntüleme hedeflenmiştir.' +
                     '</small>' +
                   '</span>' +
+
                 '</label>' +
+
               '</div>' +
 
-              '<div class="card">' +
+              '<div class="card" style="background:var(--surface)">' +
                 '<p class="muted small">' +
                   '<b>Önemli:</b> Bildiriminde şifre, telefon numarası, ' +
                   'adres veya gereksiz kişisel bilgiler paylaşma. ' +
@@ -495,12 +503,12 @@
 
         const result = store.createReport({
           studentId: user.id,
-          title: $('#reportTitle', el).value.trim(),
+          title: $('#reportTitle', el).value,
           category: $('#reportCategory', el).value,
           location: $('#reportLocation', el).value,
           severity: $('#reportSeverity', el).value,
           frequency: $('#reportFrequency', el).value,
-          description: $('#reportDescription', el).value.trim(),
+          description: $('#reportDescription', el).value,
           anonymous: $('#reportAnonymous', el).checked
         });
 
@@ -527,7 +535,7 @@
     ===================================== */
 
     function reports(el) {
-      const items = getReports();
+      const items = getVisibleReports();
 
       const active = items.filter(r =>
         r.status === 'new' || r.status === 'reviewing'
@@ -543,7 +551,7 @@
           '<div class="grid g4">' +
 
             statCard({
-              label: 'Toplam bildirim',
+              label: 'Görüntülenebilen bildirim',
               value: items.length,
               icon: 'clipboard-list',
               tone: 'primary'
@@ -576,9 +584,10 @@
 
             '<div class="card-h">' +
               '<div>' +
-                '<h3>Bildirimlerim</h3>' +
+                '<h3>Bildirimler</h3>' +
                 '<p class="muted small">' +
-                  'Oluşturduğun bildirimlerin durumunu ve işlem geçmişini takip et.' +
+                  'Kendi bildirimlerini ve anonim olarak paylaşılan ' +
+                  'okul güvenliği bildirimlerini görüntüleyebilirsin.' +
                 '</p>' +
               '</div>' +
 
@@ -586,77 +595,40 @@
                 icon('plus', 16) +
                 ' Yeni bildirim' +
               '</button>' +
-            '</div>' +
-
-            '<div class="toolbar" style="margin:14px 0">' +
-
-              '<div class="grow">' +
-                '<label for="reportSearch">Bildirim ara</label>' +
-                '<input class="input" id="reportSearch" type="search" ' +
-                  'placeholder="Başlık veya açıklama...">' +
-              '</div>' +
-
-              '<div>' +
-                '<label for="reportStatusFilter">Durum</label>' +
-                '<select class="input" id="reportStatusFilter">' +
-                  '<option value="all">Tüm durumlar</option>' +
-                  '<option value="new">Yeni</option>' +
-                  '<option value="reviewing">İnceleniyor</option>' +
-                  '<option value="resolved">Çözüldü</option>' +
-                  '<option value="closed">Kapatıldı</option>' +
-                '</select>' +
-              '</div>' +
 
             '</div>' +
 
             '<div id="reportList"></div>' +
 
           '</div>' +
+
         '</div>';
 
       $('#newReportBtn', el).addEventListener('click', () => {
         reportCreate(el);
       });
 
-      const search = $('#reportSearch', el);
-      const statusFilter = $('#reportStatusFilter', el);
       const list = $('#reportList', el);
 
-      function drawList() {
-        const q = search.value.trim().toLocaleLowerCase('tr-TR');
-        const status = statusFilter.value;
-
-        const filtered = items.filter(report => {
-          const matchesSearch =
-            !q ||
-            String(report.title || '').toLocaleLowerCase('tr-TR').includes(q) ||
-            String(report.description || '').toLocaleLowerCase('tr-TR').includes(q);
-
-          const matchesStatus =
-            status === 'all' || report.status === status;
-
-          return matchesSearch && matchesStatus;
-        });
-
-        if (!filtered.length) {
-          list.innerHTML = emptyState(
-            items.length
-              ? 'Aramana veya seçtiğin duruma uygun bildirim bulunamadı.'
-              : 'Henüz bir sorun bildirimi oluşturmadın.',
+      if (!items.length) {
+        list.innerHTML =
+          emptyState(
+            'Henüz görüntülenebilecek bir bildirim yok.',
             'clipboard-list'
-          );
-          return;
-        }
+          ) +
 
-        list.innerHTML = '<div class="stack-v">' +
-          filtered.map(reportCard).join('') +
-        '</div>';
+          '<p class="muted small">' +
+            'Okul ortamında karşılaştığın bir sorunu bildirmek için ' +
+            '"Yeni bildirim" butonunu kullanabilirsin.' +
+          '</p>';
+
+        return;
       }
 
-      search.addEventListener('input', drawList);
-      statusFilter.addEventListener('change', drawList);
-
-      drawList();
+      list.innerHTML =
+        '<div class="stack-v">' +
+          items.map(reportCard).join('') +
+        '</div>';
     }
 
     /* =====================================
@@ -687,7 +659,7 @@
 
       reports: {
         title: 'Bildirim takibi',
-        sub: 'Bildirimlerinin durumunu ve işlem geçmişini görüntüle.',
+        sub: 'Kendi bildirimlerini ve anonim bildirimleri görüntüle.',
         render: reports
       },
 
