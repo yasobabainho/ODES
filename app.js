@@ -1,3 +1,4 @@
+
 /* ODES demo prototipi - ortak çekirdek:
    kabuk, menü, modal, toast, gelen kutusu, grafikler */
 
@@ -464,6 +465,11 @@
         page: 'admin',
         hash: 'riskMap',
         icon: 'map-pin'
+      },
+      {
+        label: 'Risk İstatistikleri',
+        page: 'admin-stats',
+        icon: 'chart'
       },
       {
         label: 'Kullanıcılar',
