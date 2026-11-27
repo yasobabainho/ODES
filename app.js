@@ -1,4 +1,3 @@
-
 /* ODES demo prototipi - ortak çekirdek:
    kabuk, menü, modal, toast, gelen kutusu, grafikler */
 
@@ -542,7 +541,7 @@
         '<aside class="sidebar" id="sidebar" aria-label="Ana menü">' +
 
           '<a class="brand" href="' + homeOf(user.role) + '">' +
-            '<span class="logo">' + icon('school', 22) + '</span>' +
+            '<span class="logo">' + icon('shield-check', 24) + '</span>' +
             '<span>' +
               '<b>ODES</b>' +
               '<small>' + esc(ODES.ROLES[user.role]) + ' paneli</small>' +
