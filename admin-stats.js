@@ -1,99 +1,426 @@
+
 (function () {
   'use strict';
-  const { $, $$, esc, icon, store, statCard, emptyState, charts, pct, fmtDT, downloadCSV, toast } = ODES;
 
-  ODES.pages['admin-stats'] = function (root) {
-    let range = 14;
+  const {
+    $, esc, icon, store, statCard, emptyState,
+    downloadCSV, toast, fmtDT
+  } = ODES;
 
-    root.innerHTML = '<div class="page"><div class="page-head"><div><h1>İstatistikler</h1><p class="muted">Gönderim hacmi, okunma oranları ve etkileşim özetleri.</p></div>' +
-      '<div class="page-actions"><select class="select" id="range" aria-label="Zaman aralığı"><option value="7">Son 7 gün</option><option value="14" selected>Son 14 gün</option><option value="30">Son 30 gün</option></select>' +
-      '<button class="btn" type="button" id="csv">' + icon('download', 16) + 'CSV indir</button></div></div><div id="stats"></div></div>';
+  ODES.pages['admin-stats'] = function (root, user) {
 
-    function sentInRange() {
-      const from = Date.now() - range * ODES.DAY;
-      return store.db().notifications.filter(n => n.status === 'sent' && new Date(n.sentAt).getTime() >= from);
+    const DEMO_IDS = new Set([
+      'a1',
+      't1', 't2', 't3', 't4',
+      's1', 's2', 's3', 's4', 's5',
+      's6', 's7', 's8', 's9', 's10', 's11'
+    ]);
+
+    const STATUS = ODES.REPORT_STATUSES || {};
+    const CATEGORY = ODES.REPORT_CATEGORIES || {};
+    const SEVERITY = ODES.REPORT_SEVERITIES || {};
+    const FREQUENCY = ODES.REPORT_FREQUENCIES || {};
+    const LOCATIONS = ODES.SCHOOL_LOCATIONS || [];
+
+    const STATUS_COLORS = {
+      new: '#527da8',
+      reviewing: '#c28a3e',
+      resolved: '#39866b',
+      closed: '#8793a1'
+    };
+
+    const SEVERITY_COLORS = {
+      low: '#8793a1',
+      medium: '#527da8',
+      high: '#c28a3e',
+      critical: '#bd555b'
+    };
+
+    let range = 30;
+
+    function getReports() {
+      return (store.adminReports(user.id) || []).filter(report =>
+        DEMO_IDS.has(report.reporterId)
+      );
     }
-    const readCount = n => Object.keys(n.reads || {}).filter(id => n.recipients.includes(id)).length;
+
+    function inRange(report) {
+      if (range === 0) return true;
+
+      const date = new Date(report.createdAt).getTime();
+
+      if (!Number.isFinite(date)) return false;
+
+      return date >= Date.now() - range * ODES.DAY;
+    }
+
+    function countBy(items, key) {
+      const result = {};
+
+      items.forEach(item => {
+        const value = item[key] || 'other';
+        result[value] = (result[value] || 0) + 1;
+      });
+
+      return result;
+    }
+
+    function percent(value, total) {
+      return total ? Math.round(value / total * 100) : 0;
+    }
+
+    function barRows(items, total, colors) {
+      if (!items.length) {
+        return emptyState('Henüz analiz edilecek veri yok.', 'chart');
+      }
+
+      return '<div class="stack-v">' +
+        items.map(item => {
+          const value = item.value || 0;
+          const rate = percent(value, total);
+          const color = colors && colors[item.key]
+            ? colors[item.key]
+            : 'var(--primary)';
+
+          return '<div class="risk-stat-row">' +
+            '<div class="row" style="justify-content:space-between;gap:12px;align-items:center">' +
+              '<span>' + esc(item.label) + '</span>' +
+              '<b>' + value + ' <small class="muted">(%' + rate + ')</small></b>' +
+            '</div>' +
+            '<div style="height:9px;background:var(--border);border-radius:20px;overflow:hidden;margin-top:8px">' +
+              '<div style="height:100%;width:' + rate + '%;background:' + color + ';border-radius:20px"></div>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+    }
+
+    function makeItems(dictionary, counts, colors) {
+      return Object.keys(dictionary).map(key => ({
+        key,
+        label: dictionary[key],
+        value: counts[key] || 0,
+        color: colors && colors[key]
+      })).sort((a, b) => b.value - a.value);
+    }
+
+    function card(title, subtitle, content) {
+      return '<section class="card">' +
+        '<div class="card-h">' +
+          '<div>' +
+            '<h3>' + esc(title) + '</h3>' +
+            (subtitle
+              ? '<p class="muted small">' + esc(subtitle) + '</p>'
+              : '') +
+          '</div>' +
+        '</div>' +
+        content +
+      '</section>';
+    }
 
     function draw() {
-      const db = store.db();
-      const sent = sentInRange();
-      const deliveries = sent.reduce((s, n) => s + n.recipients.length, 0);
-      const reads = sent.reduce((s, n) => s + readCount(n), 0);
-      let delays = [];
-      sent.forEach(n => Object.keys(n.reads).forEach(id => { if (n.recipients.includes(id)) delays.push((new Date(n.reads[id]) - new Date(n.sentAt)) / ODES.HOUR); }));
-      const avgDelay = delays.length ? delays.reduce((a, b) => a + b, 0) / delays.length : null;
+      const all = getReports();
+      const reports = all.filter(inRange);
 
-      // Günlük gönderim
-      const days = [];
-      for (let i = range - 1; i >= 0; i--) { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i); days.push(d); }
-      const perDay = days.map(d => {
-        const k = store.dateKey(d);
-        const value = sent.filter(n => store.dateKey(n.sentAt) === k).length;
-        return { label: range <= 14 ? String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') : String(d.getDate()), value };
+      const total = reports.length;
+
+      const open = reports.filter(report =>
+        report.status === 'new' ||
+        report.status === 'reviewing'
+      ).length;
+
+      const critical = reports.filter(report =>
+        report.severity === 'critical' &&
+        report.status !== 'resolved' &&
+        report.status !== 'closed'
+      ).length;
+
+      const resolved = reports.filter(report =>
+        report.status === 'resolved' ||
+        report.status === 'closed'
+      ).length;
+
+      const resolutionRate = percent(resolved, total);
+
+      const statusCounts = countBy(reports, 'status');
+      const categoryCounts = countBy(reports, 'category');
+      const severityCounts = countBy(reports, 'severity');
+      const frequencyCounts = countBy(reports, 'frequency');
+      const locationCounts = countBy(reports, 'location');
+
+      const statusItems = makeItems(STATUS, statusCounts);
+      const categoryItems = makeItems(CATEGORY, categoryCounts);
+      const severityItems = makeItems(SEVERITY, severityCounts);
+      const frequencyItems = makeItems(FREQUENCY, frequencyCounts);
+
+      const locationItems = LOCATIONS.map(location => ({
+        key: location,
+        label: location,
+        value: locationCounts[location] || 0
+      })).sort((a, b) => b.value - a.value);
+
+      const highRisk = reports.filter(report =>
+        (
+          report.severity === 'high' ||
+          report.severity === 'critical'
+        ) &&
+        report.status !== 'resolved' &&
+        report.status !== 'closed'
+      ).sort((a, b) =>
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+
+      const recent = reports.slice().sort((a, b) =>
+        new Date(b.createdAt) - new Date(a.createdAt)
+      ).slice(0, 8);
+
+      const activeLocations = locationItems.filter(item =>
+        item.value > 0
+      ).length;
+
+      const averagePerDay = range
+        ? (total / range).toFixed(1).replace('.', ',')
+        : '—';
+
+      root.innerHTML =
+        '<div class="page">' +
+
+          '<div class="page-head">' +
+            '<div>' +
+              '<h1>Risk istatistikleri</h1>' +
+              '<p class="muted">Okul güvenliği bildirimlerinin analiz ve değerlendirme özeti.</p>' +
+            '</div>' +
+
+            '<div class="page-actions">' +
+              '<select class="select" id="statsRange" aria-label="İstatistik zaman aralığı">' +
+                '<option value="7">Son 7 gün</option>' +
+                '<option value="30" selected>Son 30 gün</option>' +
+                '<option value="90">Son 90 gün</option>' +
+                '<option value="0">Tüm zamanlar</option>' +
+              '</select>' +
+
+              '<button class="btn" type="button" id="statsCSV">' +
+                icon('download', 16) + ' CSV indir' +
+              '</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="stack-v" id="statsContent">' +
+
+            '<div class="grid g4">' +
+
+              statCard({
+                label: 'Toplam risk bildirimi',
+                value: total,
+                icon: 'clipboard-list',
+                tone: 'primary'
+              }) +
+
+              statCard({
+                label: 'İşlem bekleyen',
+                value: open,
+                icon: 'clock',
+                tone: 'warning'
+              }) +
+
+              statCard({
+                label: 'Açık kritik risk',
+                value: critical,
+                icon: 'alert-circle',
+                tone: 'danger'
+              }) +
+
+              statCard({
+                label: 'Çözüme ulaştırılan',
+                value: '%' + resolutionRate,
+                icon: 'check-circle',
+                tone: 'success'
+              }) +
+
+            '</div>' +
+
+            '<div class="grid g2">' +
+
+              card(
+                'Bildirim durumları',
+                'Seçilen zaman aralığındaki işlem durumları.',
+                barRows(
+                  statusItems,
+                  total,
+                  STATUS_COLORS
+                )
+              ) +
+
+              card(
+                'Önem derecesi',
+                'Risklerin önem seviyelerine göre dağılımı.',
+                barRows(
+                  severityItems,
+                  total,
+                  SEVERITY_COLORS
+                )
+              ) +
+
+            '</div>' +
+
+            '<div class="grid g2">' +
+
+              card(
+                'Risk kategorileri',
+                'Bildirimlerin konu başlıklarına göre dağılımı.',
+                barRows(categoryItems, total)
+              ) +
+
+              card(
+                'Bildirim sıklığı',
+                'Öğrencilerin bildirdiği tekrar sıklığı.',
+                barRows(frequencyItems, total)
+              ) +
+
+            '</div>' +
+
+            card(
+              'Okul bölgelerine göre risk dağılımı',
+              'Bildirimlerin oluşturulduğu okul bölümleri.',
+              '<div class="muted small" style="margin-bottom:14px">' +
+                activeLocations + ' farklı bölgede bildirim bulunuyor.' +
+              '</div>' +
+              barRows(locationItems, total)
+            ) +
+
+            card(
+              'Öncelikli değerlendirme gerektiren bildirimler',
+              'Çözülmemiş yüksek ve kritik önem dereceli bildirimler.',
+              highRisk.length
+                ? '<div class="table-wrap">' +
+                    '<table class="table stack">' +
+                      '<thead><tr>' +
+                        '<th>Bildirim</th>' +
+                        '<th>Bölge</th>' +
+                        '<th>Önem</th>' +
+                        '<th>Durum</th>' +
+                      '</tr></thead>' +
+                      '<tbody>' +
+                        highRisk.slice(0, 10).map(report =>
+                          '<tr>' +
+                            '<td data-label="Bildirim">' +
+                              '<b>' + esc(report.title) + '</b>' +
+                              '<small class="muted" style="display:block">' +
+                                esc(fmtDT(report.createdAt)) +
+                              '</small>' +
+                            '</td>' +
+                            '<td data-label="Bölge">' +
+                              esc(report.location) +
+                            '</td>' +
+                            '<td data-label="Önem">' +
+                              esc(SEVERITY[report.severity] || '—') +
+                            '</td>' +
+                            '<td data-label="Durum">' +
+                              esc(STATUS[report.status] || '—') +
+                            '</td>' +
+                          '</tr>'
+                        ).join('') +
+                      '</tbody>' +
+                    '</table>' +
+                  '</div>'
+                : emptyState(
+                    'Bu zaman aralığında açık yüksek veya kritik risk bulunmuyor.',
+                    'check-circle'
+                  )
+            ) +
+
+            card(
+              'Son risk bildirimleri',
+              'En son oluşturulan sekiz bildirim.',
+              recent.length
+                ? '<div class="table-wrap">' +
+                    '<table class="table stack">' +
+                      '<thead><tr>' +
+                        '<th>Bildirim</th>' +
+                        '<th>Kategori</th>' +
+                        '<th>Bölge</th>' +
+                        '<th>Tarih</th>' +
+                      '</tr></thead>' +
+                      '<tbody>' +
+                        recent.map(report =>
+                          '<tr>' +
+                            '<td data-label="Bildirim"><b>' +
+                              esc(report.title) +
+                            '</b></td>' +
+                            '<td data-label="Kategori">' +
+                              esc(CATEGORY[report.category] || 'Diğer') +
+                            '</td>' +
+                            '<td data-label="Bölge">' +
+                              esc(report.location) +
+                            '</td>' +
+                            '<td data-label="Tarih">' +
+                              esc(fmtDT(report.createdAt)) +
+                            '</td>' +
+                          '</tr>'
+                        ).join('') +
+                      '</tbody>' +
+                    '</table>' +
+                  '</div>'
+                : emptyState(
+                    'Henüz risk bildirimi bulunmuyor.',
+                    'clipboard-list'
+                  )
+            ) +
+
+            '<div class="card">' +
+              '<h3>Genel değerlendirme</h3>' +
+              '<p class="muted small">' +
+                'Seçilen dönemde günlük ortalama bildirim sayısı: <b>' +
+                averagePerDay +
+                '</b>. Risk dağılımları, mevcut demo bildirimlerinden hesaplanır. ' +
+                'Bu istatistikler tek başına gerçek okul güvenliği düzeyini kanıtlamaz; ' +
+                'bildirimlerin incelenmesi ve okul yönetiminin değerlendirmesi gerekir.' +
+              '</p>' +
+            '</div>' +
+
+          '</div>' +
+        '</div>';
+
+      $('#statsRange', root).addEventListener('change', event => {
+        range = Number(event.target.value);
+        draw();
       });
 
-      // Durum dağılımı (tüm zamanlar)
-      const stColors = { sent: 'var(--c2)', scheduled: 'var(--c1)', draft: 'var(--c5)', cancelled: 'var(--c4)' };
-      const statusItems = Object.keys(ODES.STATUSES).map(k => ({ label: ODES.STATUSES[k], value: db.notifications.filter(n => n.status === k).length, color: stColors[k] }));
+      $('#statsCSV', root).addEventListener('click', () => {
+        const rows = [
+          [
+            'Başlık',
+            'Kategori',
+            'Konum',
+            'Önem derecesi',
+            'Sıklık',
+            'Durum',
+            'Oluşturulma tarihi'
+          ]
+        ];
 
-      // Tür bazında okunma
-      const byType = Object.keys(ODES.TYPES).map(t => {
-        const ns = sent.filter(n => n.type === t);
-        const d = ns.reduce((s, n) => s + n.recipients.length, 0), r = ns.reduce((s, n) => s + readCount(n), 0);
-        return { label: ODES.TYPES[t], value: pct(r, d), text: d ? pct(r, d) + '% (' + r + '/' + d + ')' : 'Veri yok' };
+        reports.forEach(report => {
+          rows.push([
+            report.title,
+            CATEGORY[report.category] || report.category,
+            report.location,
+            SEVERITY[report.severity] || report.severity,
+            FREQUENCY[report.frequency] || report.frequency,
+            STATUS[report.status] || report.status,
+            report.createdAt
+          ]);
+        });
+
+        if (!reports.length) {
+          toast('Dışa aktarılacak risk bildirimi bulunamadı.', 'error');
+          return;
+        }
+
+        downloadCSV('odes-risk-istatistikleri.csv', rows);
+        toast('Risk istatistikleri CSV olarak indirildi.', 'success');
       });
-
-      // Sınıf bazında okunma (öğrenciler)
-      const byClass = ODES.CLASSES.map(c => {
-        let d = 0, r = 0;
-        sent.forEach(n => n.recipients.forEach(id => { const u = store.user(id); if (u && u.role === 'student' && u.class === c) { d++; if (n.reads[id]) r++; } }));
-        return { label: 'Sınıf ' + c, value: pct(r, d), text: d ? pct(r, d) + '% (' + r + '/' + d + ')' : 'Veri yok' };
-      });
-
-      // Gönderen bazında hacim
-      const senders = {};
-      sent.forEach(n => { senders[n.senderId] = (senders[n.senderId] || 0) + 1; });
-      const maxS = Math.max.apply(null, Object.values(senders).concat([1]));
-      const bySender = Object.keys(senders).map(id => ({ label: (store.user(id) || { name: 'Silinmiş kullanıcı' }).name, value: pct(senders[id], maxS), text: senders[id] + ' bildirim' })).sort((a, b) => b.value - a.value);
-
-      // En az okunanlar
-      const lowest = sent.map(n => ({ n, rate: pct(readCount(n), n.recipients.length) })).sort((a, b) => a.rate - b.rate).slice(0, 5);
-
-      // Okunmamış bildirimi en çok olan kullanıcılar
-      const unreadBy = {};
-      sent.forEach(n => n.recipients.forEach(id => { if (!n.reads[id]) unreadBy[id] = (unreadBy[id] || 0) + 1; }));
-      const topUnread = Object.keys(unreadBy).filter(id => store.user(id)).map(id => ({ u: store.user(id), c: unreadBy[id] })).sort((a, b) => b.c - a.c).slice(0, 5);
-
-      const el = $('#stats');
-      el.innerHTML = '<div class="stack-v">' +
-        '<div class="grid g4">' +
-          statCard({ label: 'Gönderilen bildirim', value: sent.length, icon: 'send', tone: 'primary' }) +
-          statCard({ label: 'Toplam teslimat', value: deliveries, icon: 'users', tone: 'info' }) +
-          statCard({ label: 'Okunma oranı', value: deliveries ? '%' + pct(reads, deliveries) : '—', icon: 'check', tone: 'success' }) +
-          statCard({ label: 'Ort. okunma süresi', value: avgDelay == null ? '—' : (avgDelay < 1 ? Math.round(avgDelay * 60) + ' dk' : avgDelay.toFixed(1) + ' sa'), icon: 'clock', tone: 'warning' }) +
-        '</div>' +
-        '<div class="grid g-main"><div class="card"><div class="card-h"><h3>Günlük gönderim</h3><span class="muted small">Son ' + range + ' gün</span></div>' + charts.cols(perDay, { height: 210, label: 'Günlük gönderilen bildirim sayısı' }) + '</div>' +
-          '<div class="card"><div class="card-h"><h3>Durum dağılımı</h3><span class="muted small">Tüm zamanlar</span></div>' + charts.donut(statusItems, { label: 'Bildirim durumu dağılımı', center: 'bildirim' }) + '</div></div>' +
-        '<div class="grid g2"><div class="card"><div class="card-h"><h3>Türe göre okunma oranı</h3></div>' + charts.hbars(byType) + '</div>' +
-          '<div class="card"><div class="card-h"><h3>Sınıfa göre okunma oranı</h3><span class="muted small">Öğrenciler</span></div>' + charts.hbars(byClass) + '</div></div>' +
-        '<div class="grid g2"><div class="card"><div class="card-h"><h3>Gönderen bazında hacim</h3></div>' + charts.hbars(bySender) + '</div>' +
-          '<div class="card flush"><div class="card-h"><h3>En az okunan bildirimler</h3></div><div class="table-wrap"><table class="table stack"><thead><tr><th>Bildirim</th><th>Okunma</th></tr></thead><tbody>' +
-          (lowest.map(x => '<tr><td data-label="Bildirim"><b>' + esc(x.n.title) + '</b><br><small class="muted">' + esc(fmtDT(x.n.sentAt)) + '</small></td><td data-label="Okunma"><div class="prog-cell"><div class="progress"><i style="width:' + x.rate + '%"></i></div><span>%' + x.rate + '</span></div></td></tr>').join('') || '<tr><td colspan="2">' + emptyState('Bu aralıkta gönderim yok.', 'chart') + '</td></tr>') + '</tbody></table></div></div></div>' +
-        '<div class="card flush"><div class="card-h"><h3>Okunmamış bildirimi en çok olanlar</h3></div><div class="table-wrap"><table class="table stack"><thead><tr><th>Kullanıcı</th><th>Rol / sınıf</th><th>Okunmamış</th></tr></thead><tbody>' +
-          (topUnread.map(x => '<tr><td data-label="Kullanıcı"><div class="person">' + ODES.avatar(x.u.name, 'sm') + '<b>' + esc(x.u.name) + '</b></div></td><td data-label="Rol / sınıf">' + esc(x.u.role === 'student' ? x.u.class : ODES.ROLES[x.u.role]) + '</td><td data-label="Okunmamış"><span class="badge b-warning">' + x.c + '</span></td></tr>').join('') || '<tr><td colspan="3">' + emptyState('Okunmamış bildirim yok.', 'check') + '</td></tr>') + '</tbody></table></div></div>' +
-        '<p class="muted small">Tüm değerler demo verisinden hesaplanır; okunma süresi, bildirimin gönderiminden ilk okunmaya kadar geçen süredir.</p></div>';
     }
 
-    $('#range').addEventListener('change', e => { range = Number(e.target.value); draw(); });
-    $('#csv').addEventListener('click', () => {
-      const sent = sentInRange();
-      if (!sent.length) { toast('Bu aralıkta dışa aktarılacak veri yok.', 'error'); return; }
-      const rows = [['Başlık', 'Tür', 'Gönderen', 'Hedef', 'Gönderim zamanı', 'Alıcı', 'Okuyan', 'Okunma oranı (%)']]
-        .concat(sent.map(n => [n.title, ODES.TYPES[n.type], (store.user(n.senderId) || { name: '—' }).name, store.audienceLabel(n.audience), new Date(n.sentAt).toLocaleString('tr-TR'), n.recipients.length, readCount(n), pct(readCount(n), n.recipients.length)]));
-      downloadCSV('odes-bildirim-istatistikleri.csv', rows);
-      toast('CSV dosyası indirildi.', 'success');
-    });
     draw();
   };
 })();
