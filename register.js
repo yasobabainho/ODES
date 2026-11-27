@@ -5,7 +5,9 @@
   const { $, esc, icon, store, homeOf } = ODES;
 
   ODES.pages.register = function () {
-    $('#logoIc').innerHTML = icon('school', 22);
+
+    // ODES güvenlik logosu
+    $('#logoIc').innerHTML = icon('shield-check', 24);
     $('#warnIc').innerHTML = icon('info', 18);
 
     const role = $('#role');
@@ -42,8 +44,11 @@
       let s = 0;
 
       if (v.length >= 8) s++;
+
       if (/[a-zçğıöşü]/i.test(v) && /\d/.test(v)) s++;
+
       if (/[A-ZÇĞİÖŞÜ]/.test(v) && /[a-zçğıöşü]/.test(v)) s++;
+
       if (/[^\w\s]/.test(v) || v.length >= 12) s++;
 
       return s;
@@ -201,7 +206,9 @@
       // Kayıt hatası.
       if (!res.ok) {
         $('#formAlert').innerHTML =
-          '<div class="alert err">' + esc(res.error) + '</div>';
+          '<div class="alert err">' +
+          esc(res.error) +
+          '</div>';
 
         setErr('emailErr', email, res.error);
 
