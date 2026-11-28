@@ -1,108 +1,128 @@
 ODES – Okul Deneyim ve Güvenlik Sistemi
 
-ODES, okullarda karşılaşılabilecek güvenlik risklerinin bildirilmesini, değerlendirilmesini ve analiz edilmesini amaçlayan web tabanlı bir demo prototipidir.
+ODES (Okul Deneyim ve Güvenlik Sistemi), okullarda karşılaşılabilecek güvenlik sorunlarının bildirilmesi, değerlendirilmesi ve analiz edilmesi amacıyla geliştirilmiş web tabanlı bir demo prototipidir.
 
-Proje; öğrencilerin karşılaştıkları veya gözlemledikleri riskli durumları bildirebilmesini, öğretmenlerin bu bildirimleri inceleyebilmesini ve yöneticilerin okul genelindeki riskleri takip ederek önleyici çalışmalar planlayabilmesini hedefler.
+Proje; öğrencilerin okul ortamında karşılaştıkları riskleri kolayca bildirebilmesini, öğretmenlerin bu bildirimleri inceleyip takip edebilmesini ve okul yönetiminin güvenlik durumunu veriler üzerinden değerlendirebilmesini hedefler.
 
 Projenin Amacı
 
-ODES'in temel amacı, okul ortamında meydana gelebilecek güvenlik sorunlarının erken fark edilmesine ve sistematik biçimde değerlendirilmesine katkı sağlamaktır.
+ODES'in temel amacı, okul güvenliğini yalnızca sorunlar ortaya çıktıktan sonra ele almak yerine, risklerin erken fark edilmesini ve önleyici çalışmaların desteklenmesini sağlamaktır.
 
-Sistem; risk bildirimlerini kategorilerine, konumlarına, sıklıklarına ve önem derecelerine göre sınıflandırarak okul güvenliğine yönelik daha bilinçli kararlar alınmasını destekler.
+Bu doğrultuda sistem; bildirimlerin belirli kategoriler, okul bölgeleri, önem dereceleri ve tekrar sıklıkları üzerinden sınıflandırılmasına olanak tanır. Böylece okul ortamındaki risklerin daha düzenli takip edilmesi ve gerekli müdahalelerin planlanması amaçlanır.
 
 Temel Özellikler
 
-Öğrenci Modülü
+Öğrenci Paneli
 
-- Okul içerisinde karşılaşılan veya gözlemlenen riskli durumları bildirme
-- Bildirimleri kategori ve konum bilgileriyle oluşturma
-- Riskin önem derecesini ve tekrarlanma sıklığını belirtme
-- İsteğe bağlı anonim bildirim oluşturma
-- Bildirimlerin durumunu takip etme
+- Okul ortamında karşılaşılan riskler için bildirim oluşturma.
+- Bildirimleri kategori, konum, önem derecesi ve sıklığa göre sınıflandırma.
+- İsteğe bağlı anonim bildirim oluşturma.
+- Kendi bildirimlerinin işlem durumunu takip etme.
+- Bildirim geçmişini ve gelen kutusunu görüntüleme.
 
-Öğretmen Modülü
+Öğretmen Paneli
 
-- Kendisine yönlendirilen risk bildirimlerini görüntüleme
-- Bildirimleri inceleme ve değerlendirme
-- Bildirim durumlarını güncelleme
-- Müdahale ve değerlendirme sürecini takip etme
+- Erişimine açık güvenlik bildirimlerini görüntüleme.
+- Bildirimleri inceleme ve değerlendirme.
+- Bildirimlerin durumunu güncelleme.
+- Bildirim geçmişini ve gelen kutusunu takip etme.
 
-Yönetici Modülü
+Yönetici Paneli
 
-- Okuldaki risk bildirimlerini genel olarak görüntüleme
-- Bildirimleri inceleme ve ilgili öğretmenlere yönlendirme
-- Bildirimlerin durumlarını takip etme
-- Risk haritası üzerinden risklerin okul içerisindeki dağılımını inceleme
-- Risk istatistikleriyle kategori, konum, sıklık ve önem derecesi analizlerini görüntüleme
-- Verileri CSV formatında dışa aktarma
+- Güvenlik bildirimlerini görüntüleme ve yönetme.
+- Bildirimleri öğretmenlere atama.
+- Bildirimlerin işlem durumlarını takip etme.
+- Okul bölgelerine göre risk dağılımını inceleme.
+- Risk istatistiklerini ve genel değerlendirmeleri görüntüleme.
+- İstatistikleri CSV formatında dışa aktarma.
+- Demo kullanıcılarını yönetme ve öğretmen kayıtlarını onaylama.
+- Etkinlik günlüğünü ve gelen kutusunu görüntüleme.
 
 Risk Sınıflandırması
 
-ODES, bildirimleri aşağıdaki temel ölçütlere göre değerlendirir:
+ODES, bildirimleri aşağıdaki ölçütlere göre sınıflandırır:
 
-Ölçüt| Sınıflandırma
-Kategoriler| Zorbalık, güvenlik, fiziksel ortam, iletişim, diğer
+Ölçüt| Seçenekler
+Kategoriler| Akran zorbalığı, güvenlik, fiziksel ortam, iletişim, diğer
 Önem derecesi| Düşük, orta, yüksek, kritik
-Sıklık| Bir kez, bazen, sık sık, sürekli
-Durum| Yeni, inceleniyor, çözüldü, kapatıldı
+Bildirim sıklığı| Bir kez, ara sıra, sık sık, sürekli
+İşlem durumu| Yeni, inceleniyor, çözüldü, kapatıldı
 
-Bildirimlerde okulun farklı alanları konum olarak seçilebilir. Böylece risklerin hangi alanlarda yoğunlaştığı değerlendirilebilir.
+Bildirimler ayrıca okulun farklı bölümlerine göre konumlandırılabilir. Örneğin sınıflar, koridorlar, merdivenler, tuvaletler, laboratuvarlar, kütüphane, kantin ve spor salonu.
+
+Risk İstatistikleri ve Analiz
+
+Yönetici panelindeki istatistikler sayfası, kayıtlı bildirimleri farklı ölçütlere göre analiz eder.
+
+- Tarih aralığına göre filtreleme (7, 30, 90 gün ve tüm zamanlar).
+- Bildirim durumlarının dağılımı.
+- Risk önem derecelerinin dağılımı.
+- Kategori ve bildirim sıklığı analizleri.
+- Okul bölgelerine göre bildirim dağılımı.
+- Açık yüksek ve kritik risklerin listelenmesi.
+- Son bildirimlerin görüntülenmesi.
+- CSV formatında veri dışa aktarma.
+
+Bu istatistikler mevcut bildirim kayıtlarını özetler; tek başına okulun gerçek güvenlik düzeyini kanıtlamaz.
 
 Kullanılan Teknolojiler
 
-- HTML5: Sayfa yapılarının oluşturulması
-- CSS3: Arayüz tasarımı ve duyarlı görünüm
-- JavaScript: Uygulama mantığı, veri yönetimi ve etkileşimler
-- LocalStorage: Demo verilerinin tarayıcıda saklanması
-- GitHub Pages: Projenin internet üzerinden görüntülenmesi
+- HTML5
+- CSS3
+- JavaScript
+- LocalStorage
+- GitHub Pages
 
-Proje herhangi bir JavaScript kütüphanesine veya derleme işlemine ihtiyaç duymadan çalışan bir prototip olarak geliştirilmiştir.
+Proje, harici bir JavaScript kütüphanesi veya derleme işlemi gerektirmeyen bir demo prototipidir.
 
 Projeyi Çalıştırma
 
-ODES'i görüntülemek için:
+Projeyi yerel ortamda çalıştırmak için:
 
-1. GitHub deposunu açın.
-2. Proje dosyalarını indirin veya depoyu klonlayın.
-3. "index.html" dosyasını bir tarayıcıda açın.
+1. Depoyu bilgisayarınıza indirin veya klonlayın.
+2. Proje klasörünü açın.
+3. "index.html" dosyasını tarayıcıda açın.
 
-Alternatif olarak proje bir yerel HTTP sunucusu üzerinden çalıştırılabilir:
+Alternatif olarak proje klasöründe yerel sunucu başlatabilirsiniz:
 
 python3 -m http.server 8000
 
-Ardından tarayıcıdan "http://localhost:8000" adresine gidilebilir.
+Ardından tarayıcıdan şu adresi açın:
+
+http://localhost:8000
 
 Demo Hesapları
 
-Giriş ekranındaki hızlı demo girişlerini kullanabilir veya aşağıdaki e-posta adresleriyle giriş yapabilirsiniz.
+Demo ortamında aşağıdaki örnek hesaplar kullanılabilir:
 
 Rol| E-posta
 Öğrenci| ogrenci@odes.demo
 Öğretmen| ogretmen@odes.demo
 Yönetici| yonetici@odes.demo
 
-Demo prototipinde şifre doğrulaması yapılmaz.
+Demo girişinde parola kullanılmaz. Öğretmen kayıtları yönetici onayına bağlıdır.
 
-Öğretmen olarak kayıt oluşturulduğunda hesap yönetici onayı bekler.
+Demo Sınırlamaları ve Güvenlik Notları
 
-Önemli Sınırlamalar
+ODES şu anda işlevleri göstermek amacıyla geliştirilmiş bir prototiptir. Gerçek bir okul ortamında kullanılmadan önce aşağıdaki geliştirmeler gereklidir:
 
-ODES mevcut hâliyle bir demo prototipidir. Gerçek okul ortamında kullanılmadan önce aşağıdaki geliştirmelere ihtiyaç vardır:
+- Gerçek kullanıcı doğrulama ve sunucu taraflı yetkilendirme sistemi kurulmalıdır.
+- Veriler güvenli bir sunucu veritabanında saklanmalıdır.
+- Kullanıcı rollerine göre erişim kontrolleri sunucu tarafında uygulanmalıdır.
+- Anonim bildirimlerin gizliliği teknik ve idari önlemlerle güvence altına alınmalıdır.
+- Gerçek bildirim ve kullanıcı verileri için veri koruma süreçleri oluşturulmalıdır.
 
-- Gerçek kullanıcı kimlik doğrulama sistemi bulunmamaktadır.
-- Veriler tarayıcının "localStorage" alanında tutulur; farklı cihazlar arasında otomatik olarak paylaşılmaz.
-- Yetki kontrolleri istemci tarafında gerçekleştirilir. Gerçek kullanımda sunucu tarafında güvenli yetkilendirme gereklidir.
-- Bildirimler gerçek e-posta, SMS veya anlık bildirim hizmetleri üzerinden iletilmez.
-- Demo verileri gerçek okul güvenliği verileri değildir.
+Mevcut prototipte veriler tarayıcının LocalStorage alanında tutulur. Bu nedenle farklı cihazlar arasında otomatik veri paylaşımı yapılmaz ve mevcut giriş sistemi gerçek kimlik doğrulama sağlamaz.
 
-Bu nedenle mevcut sürüm, projenin temel işleyişini ve arayüzünü göstermek amacıyla hazırlanmıştır.
+Önemli: Demo ortamı gerçek öğrenci bilgileri veya hassas okul verileriyle kullanılmamalıdır.
 
-Proje Bağlantısı
+Proje Bağlantıları
 
-GitHub deposu: https://github.com/yasobabainho/ODES
+- Canlı Demo: https://yasobabainho.github.io/ODES/
+- GitHub Deposu: https://github.com/yasobabainho/ODES
 
-Canlı demo: https://yasobabainho.github.io/ODES/
+Proje Hedefi
 
----
+ODES, okul ortamındaki güvenlik risklerinin daha erken fark edilmesini, düzenli biçimde raporlanmasını ve gerekli önleyici çalışmaların desteklenmesini amaçlar.
 
-ODES – Daha güvenli okul ortamları için riskleri fark et, bildir ve değerlendir.
+Daha güvenli okul ortamları için riskleri fark et, bildir ve değerlendir.
